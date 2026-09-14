@@ -1,0 +1,50 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "enugu-properties",
+  "compatibility_date": "2026-09-14",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "main": "vinext/server/fetch-handler",
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "none",
+    "binding": "ASSETS"
+  },
+  "cache": {
+    "enabled": true
+  },
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
+  },
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://enugu-properties.emailgalaxyway.workers.dev",
+    "NEON_AUTH_BASE_URL": "https://ep-crimson-block-za1a50ot.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
+    "NEXT_PUBLIC_NEON_AUTH_URL": "https://ep-crimson-block-za1a50ot.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
+    "DEMO_MODE": "true",
+    "PREVIEW_MODE": "true"
+  },
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "enugu-properties-media-dev"
+    }
+  ],
+  "env": {
+    "production": {
+      "vars": {
+        "NEXT_PUBLIC_APP_URL": "https://enuguproperties.com",
+        "NEON_AUTH_BASE_URL": "https://ep-holy-sound-zaigrb4x.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
+        "NEXT_PUBLIC_NEON_AUTH_URL": "https://ep-holy-sound-zaigrb4x.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
+        "DEMO_MODE": "false",
+        "PREVIEW_MODE": "false"
+      },
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "enugu-properties-media"
+        }
+      ]
+    }
+  }
+}
