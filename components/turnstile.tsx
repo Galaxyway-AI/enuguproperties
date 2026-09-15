@@ -1,6 +1,6 @@
 "use client";
 import Script from "next/script";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 declare global {
   interface Window {
     turnstile?: {
@@ -12,6 +12,7 @@ declare global {
           "expired-callback": () => void;
           "error-callback": () => void;
           action: string;
+          appearance: "always";
         },
       ) => string;
     };
@@ -26,27 +27,52 @@ export function Turnstile({
 }) {
   const target = useRef<HTMLDivElement>(null);
   const rendered = useRef(false);
-  const key = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  if (!key) return null;
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
   function render() {
+    const key = document.body.dataset.turnstileSiteKey || "";
+    if (!key) {
+      setStatus("error");
+      return;
+    }
     if (!rendered.current && target.current && window.turnstile) {
       window.turnstile.render(target.current, {
-        sitekey: key!,
-        callback: onToken,
+        sitekey: key,
+        callback: (token) => {
+          setStatus("ready");
+          onToken(token);
+        },
         "expired-callback": () => onToken(""),
-        "error-callback": () => onToken(""),
+        "error-callback": () => {
+          setStatus("error");
+          onToken("");
+        },
         action,
+        appearance: "always",
       });
       rendered.current = true;
+      setStatus("ready");
     }
   }
   return (
-    <>
+    <div className="turnstile-shell">
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         onReady={render}
+        onError={() => setStatus("error")}
       />
       <div ref={target} data-turnstile-action={action} />
-    </>
+      {status === "loading" && (
+        <span className="turnstile-status" role="status">
+          Loading security check…
+        </span>
+      )}
+      {status === "error" && (
+        <span className="turnstile-status error" role="alert">
+          The security check could not load. Refresh the page and try again.
+        </span>
+      )}
+    </div>
   );
 }

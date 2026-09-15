@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ArrowUpRight, Menu, X, Building2 } from "lucide-react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
 export function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -16,12 +17,14 @@ export function Header() {
     <header className="site-header">
       <div className="container nav-inner">
         <Link href="/" className="brand" aria-label="Enugu Properties home">
-          <span className="brand-symbol">
-            <Building2 size={27} />
-          </span>
-          <span>
-            enugu<span className="brand-small">PROPERTIES</span>
-          </span>
+          <Image
+            className="brand-logo"
+            src="/logo_long.png"
+            alt=""
+            width={2172}
+            height={724}
+            priority
+          />
         </Link>
         <nav
           aria-label="Main navigation"

@@ -1,16 +1,20 @@
 import Link from "next/link";
-import { Building2, ArrowUpRight } from "lucide-react";
+import Image from "next/image";
+import { ArrowUpRight } from "lucide-react";
 import { business, whatsappUrl } from "@/lib/business";
 export function Footer() {
   return (
     <footer className="footer">
       <div className="container footer-grid">
         <div>
-          <Link href="/" className="brand">
-            <Building2 size={30} />
-            <span>
-              enugu<span className="brand-small">PROPERTIES</span>
-            </span>
+          <Link href="/" className="brand" aria-label="Enugu Properties home">
+            <Image
+              className="brand-logo"
+              src="/logo_long.png"
+              alt=""
+              width={2172}
+              height={724}
+            />
           </Link>
           <p>
             Property is personal.

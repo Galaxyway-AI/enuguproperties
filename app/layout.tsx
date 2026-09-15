@@ -26,9 +26,11 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const turnstileKeyName = "NEXT_PUBLIC_TURNSTILE_SITE_KEY";
+  const turnstileSiteKey = process.env[turnstileKeyName];
   return (
     <html lang="en-NG">
-      <body>
+      <body data-turnstile-site-key={turnstileSiteKey}>
         <a className="skip-link" href="#main">
           Skip to content
         </a>

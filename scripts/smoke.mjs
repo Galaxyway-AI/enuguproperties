@@ -102,6 +102,11 @@ if (new URL(base).hostname === "enuguproperties.com") {
 
   const contact = await (await fetch(base + "/contact")).text();
   assert.match(contact, /challenges\.cloudflare\.com\/turnstile/);
+  assert.match(
+    contact,
+    /data-turnstile-site-key="[^"]+"/,
+    "production forms should receive the runtime Turnstile site key",
+  );
 } else if (new URL(base).hostname.endsWith(".workers.dev")) {
   const root = await fetch(base + "/");
   assert.match(root.headers.get("x-robots-tag") || "", /noindex/i);

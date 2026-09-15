@@ -194,24 +194,13 @@ em {
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  color: var(--green);
-  font-family: "Manrope", sans-serif;
-  font-size: 30px;
-  font-weight: 800;
   line-height: 1;
 }
-.brand-small {
+.brand-logo {
   display: block;
-  letter-spacing: 3px;
-  font-size: 9px;
-  margin-top: 6px;
-  font-weight: 650;
-}
-.brand-symbol {
-  display: flex;
-  padding: 8px 5px;
-  border-bottom: 2px solid var(--green);
+  width: 194px;
+  height: auto;
+  object-fit: contain;
 }
 .nav-links {
   display: flex;
@@ -781,6 +770,10 @@ em {
 .footer-grid .brand {
   margin-bottom: 23px;
 }
+.footer-grid .brand-logo {
+  width: 220px;
+  max-width: 100%;
+}
 .footer-grid p {
   font-size: 13px;
 }
@@ -973,6 +966,21 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+.turnstile-shell {
+  position: relative;
+  min-height: 70px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.turnstile-status {
+  color: var(--muted);
+  font-size: 13px;
+}
+.turnstile-status.error {
+  color: #9a332a;
 }
 .panel {
   padding: 28px;
@@ -1489,17 +1497,10 @@ textarea {
     gap: 10px;
   }
   .brand {
-    font-size: 25px;
+    max-width: calc(100% - 142px);
   }
-  .brand-symbol {
-    padding: 5px 2px;
-  }
-  .brand-symbol svg {
-    width: 23px;
-  }
-  .brand-small {
-    font-size: 8px;
-    letter-spacing: 2.5px;
+  .brand-logo {
+    width: 158px;
   }
   .nav-actions {
     gap: 8px;
