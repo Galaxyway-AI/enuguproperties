@@ -11,6 +11,8 @@ export default async function Request({
   const { property, kind } = await searchParams;
   if (!["enquire", "inspection", "offer", "report"].includes(kind)) notFound();
   if (kind === "offer" && !features.offers) notFound();
+  if (kind === "enquire" && !features.enquiries) notFound();
+  if (kind === "inspection" && !features.inspections) notFound();
   const { data: p } = await (
     await db()
   )

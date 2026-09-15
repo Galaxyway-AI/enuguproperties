@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getAreas, getProperties } from "@/lib/catalogue";
+export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_APP_URL || "https://enuguproperties.com";
   const [areas, result] = await Promise.all([getAreas(), getProperties()]);

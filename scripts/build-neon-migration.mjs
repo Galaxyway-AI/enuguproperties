@@ -12,6 +12,7 @@ const sourceFiles = [
   // predated Neon Data API. A fresh Data API database already owns these
   // roles and schemas, so renaming them would be invalid.
   "supabase/migrations/0011_approved_legal_documents.sql",
+  "supabase/migrations/0012_registration_activation.sql",
 ];
 
 const compatibility = `-- Neon compatibility layer for the original PostgreSQL schema.

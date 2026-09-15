@@ -74,11 +74,14 @@ export async function POST(request: NextRequest) {
       await rpc("update_profile", {
         p_name: text(data.full_name, 2, 120),
         p_phone: text(data.phone, 6, 30),
+        p_whatsapp: text(data.whatsapp || "", 0, 30),
         p_type: z
           .enum(["owner", "agent", "developer", "buyer"])
           .parse(data.seller_type),
       });
     else if (action === "save-property") {
+      if (!features.freeListings)
+        throw new HttpError(503, "Property listing is temporarily unavailable.");
       const payload = {
         ...data,
         title: text(data.title, 5, 160),
@@ -192,6 +195,10 @@ export async function POST(request: NextRequest) {
       const kind = z
         .enum(["save", "enquire", "inspection", "offer", "report"])
         .parse(body.kind);
+      if (kind === "enquire" && !features.enquiries)
+        throw new HttpError(503, "Property enquiries are temporarily unavailable.");
+      if (kind === "inspection" && !features.inspections)
+        throw new HttpError(503, "Inspection requests are temporarily unavailable.");
       if (kind === "offer" && !features.offers)
         throw new HttpError(404, "Offers are not available.");
       if (kind !== "save") await checkBot(body.token, "buyer");

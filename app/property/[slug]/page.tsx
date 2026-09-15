@@ -6,6 +6,7 @@ import { getProperty } from "@/lib/catalogue";
 import { money, verificationLabels } from "@/lib/domain";
 import { Gallery } from "@/components/gallery";
 import { features, whatsappUrl } from "@/lib/business";
+export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
 }: {
@@ -222,18 +223,22 @@ export default async function Property({
           </p>
           {!p.demo && ["live", "under_offer"].includes(p.status) ? (
             <>
-              <Link
-                className="button"
-                href={`/account/request?property=${p.id}&kind=inspection`}
-              >
-                Request inspection
-              </Link>
-              <Link
-                className="button secondary"
-                href={`/account/request?property=${p.id}&kind=enquire`}
-              >
-                Ask about this property
-              </Link>
+              {features.inspections && (
+                <Link
+                  className="button"
+                  href={`/account/request?property=${p.id}&kind=inspection`}
+                >
+                  Request inspection
+                </Link>
+              )}
+              {features.enquiries && (
+                <Link
+                  className="button secondary"
+                  href={`/account/request?property=${p.id}&kind=enquire`}
+                >
+                  Ask about this property
+                </Link>
+              )}
               <a
                 className="button secondary"
                 href={whatsappUrl(

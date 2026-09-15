@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { currentUser, configured } from "@/lib/supabase";
+import { currentUser, configured, db } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Your account",
@@ -30,6 +30,7 @@ export default async function AccountLayout({
     );
   const user = await currentUser();
   if (!user) redirect("/login");
+  const { data: permissions } = await (await db()).rpc("my_permissions");
   return (
     <div className="container dashboard">
       <nav className="dashboard-nav" aria-label="Account navigation">
@@ -51,7 +52,7 @@ export default async function AccountLayout({
             {s[0].toUpperCase() + s.slice(1)}
           </Link>
         ))}
-        <Link href="/admin">Staff workspace</Link>
+        {permissions?.length ? <Link href="/admin">Staff workspace</Link> : null}
       </nav>
       <div className="dashboard-content">{children}</div>
     </div>

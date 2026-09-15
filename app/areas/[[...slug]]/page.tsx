@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { MapPin, ArrowUpRight } from "lucide-react";
 import { getAreas, getProperties } from "@/lib/catalogue";
 import { PropertyCard } from "@/components/property-card";
+export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
 }: {

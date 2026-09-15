@@ -18,6 +18,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0005_release_controls.sql",
     "0006_property_details.sql",
     "0007_beta_operations.sql",
+    "0012_registration_activation.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -34,6 +35,52 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     buyer = "10000000-0000-4000-8000-000000000004";
   await sql.exec(
     `insert into auth.users(id) values('${seller}'),('${other}'),('${staff}'),('${buyer}'); update public.profiles set full_name='Test account',phone='+234000000000'; insert into public.user_roles values('${staff}','super_admin');`,
+  );
+  await t.test(
+    "registration records profile details and immutable legal versions",
+    async () => {
+      await sql.exec(`
+        insert into public.agreement_versions(kind,version,content,sha256,legal_approved,active)
+        values
+          ('terms','registration-test','Terms','terms-hash',true,true),
+          ('privacy','registration-test','Privacy','privacy-hash',true,true);
+        select app_private.complete_registration(
+          '${other}','Ada Okafor','+2348012345678','agent'
+        );
+      `);
+      const profile = (
+        await sql.query<{
+          full_name: string;
+          phone: string;
+          seller_type: string;
+        }>("select full_name,phone,seller_type from public.profiles where id=$1", [
+          other,
+        ])
+      ).rows[0];
+      assert.deepEqual(profile, {
+        full_name: "Ada Okafor",
+        phone: "+2348012345678",
+        seller_type: "agent",
+      });
+      assert.equal(
+        (
+          await sql.query(
+            "select id from public.agreement_acceptances where user_id=$1 and property_id is null",
+            [other],
+          )
+        ).rows.length,
+        2,
+      );
+      assert.equal(
+        (
+          await sql.query(
+            "select id from public.audit_logs where actor_id=$1 and action='account_registered'",
+            [other],
+          )
+        ).rows.length,
+        1,
+      );
+    },
   );
   async function as(id: string, aal = "aal1", role = "authenticated") {
     await sql.exec(

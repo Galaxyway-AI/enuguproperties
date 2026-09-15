@@ -16,6 +16,7 @@ import { heroImage } from "@/lib/demo";
 import { SearchForm } from "@/components/search";
 import { PropertyCard } from "@/components/property-card";
 import { business } from "@/lib/business";
+export const dynamic = "force-dynamic";
 export default async function Home() {
   const [areas, { properties }] = await Promise.all([
     getAreas(),

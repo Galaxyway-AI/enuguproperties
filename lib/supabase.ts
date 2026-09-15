@@ -5,6 +5,7 @@ import {
 } from "@neondatabase/postgrest-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { authConfigured, neonAuth } from "./neon-auth";
+import { appUrl } from "./business";
 
 export const configured = () =>
   Boolean(
@@ -17,8 +18,13 @@ async function jwt() {
   const server = neonAuth();
   const sessionToken = await server.token();
   if (sessionToken.data?.token) return sessionToken.data.token;
-  const anonymousToken = await server.getAnonymousToken();
-  return anonymousToken.data?.token ?? null;
+  const response = await fetch(`${process.env.NEON_AUTH_BASE_URL}/token/anonymous`, {
+    headers: { Origin: new URL(appUrl()).origin },
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const anonymousToken = (await response.json()) as { token?: string };
+  return anonymousToken.token ?? null;
 }
 
 function dataClient() {

@@ -4,6 +4,7 @@ import { getPlans } from "@/lib/catalogue";
 import { configured } from "@/lib/supabase";
 import { money } from "@/lib/domain";
 import { features } from "@/lib/business";
+export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Advertising plans",
   description:

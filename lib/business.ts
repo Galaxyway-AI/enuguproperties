@@ -39,6 +39,9 @@ export function appUrl(path = "") {
 export const features = {
   betaMode: process.env.BETA_MODE === "true",
   registration: process.env.FEATURE_REGISTRATION !== "false",
+  freeListings: process.env.FEATURE_FREE_LISTINGS !== "false",
+  enquiries: process.env.FEATURE_ENQUIRIES !== "false",
+  inspections: process.env.FEATURE_INSPECTIONS !== "false",
   paidListings: process.env.FEATURE_PAID_LISTINGS === "true",
   propertyPurchasePayments:
     process.env.FEATURE_PROPERTY_PURCHASE_PAYMENTS === "true",

@@ -56,6 +56,16 @@ export default async function AccountSection({
               <input name="phone" type="tel" defaultValue={p?.phone} required />
             </label>
             <label>
+              WhatsApp number
+              <input
+                name="whatsapp"
+                type="tel"
+                autoComplete="tel"
+                defaultValue={p?.whatsapp}
+                maxLength={30}
+              />
+            </label>
+            <label>
               Your account type
               <select name="seller_type" defaultValue={p?.seller_type}>
                 <option value="buyer">Buyer</option>

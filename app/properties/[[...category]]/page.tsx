@@ -6,6 +6,7 @@ import { getAreas, getProperties, type SearchFilters } from "@/lib/catalogue";
 import { categories, categoryLabels, type Category } from "@/lib/domain";
 import { SearchForm } from "@/components/search";
 import { PropertyCard } from "@/components/property-card";
+export const dynamic = "force-dynamic";
 type Props = {
   params: Promise<{ category?: string[] }>;
   searchParams: Promise<SearchFilters>;

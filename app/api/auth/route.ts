@@ -10,6 +10,7 @@ import {
   HttpError,
 } from "@/lib/security";
 import { appUrl, features } from "@/lib/business";
+import { serverQuery } from "@/lib/server-db";
 export async function POST(request: NextRequest) {
   try {
     sameOrigin(request);
@@ -53,8 +54,18 @@ export async function POST(request: NextRequest) {
           503,
           "Seller registration is opening shortly. Contact our property team during the launch period.",
         );
-      const name = z.string().min(2).max(120).parse(body.name);
-      const { error } = await client.signUp.email({
+      if (body.acceptTerms !== "on")
+        throw new HttpError(400, "You must accept the Terms of Use.");
+      if (body.acknowledgePrivacy !== "on")
+        throw new HttpError(400, "You must acknowledge the Privacy Policy.");
+      const firstName = z.string().trim().min(1).max(60).parse(body.firstName);
+      const lastName = z.string().trim().min(1).max(60).parse(body.lastName);
+      const name = `${firstName} ${lastName}`;
+      const phone = z.string().trim().min(6).max(30).parse(body.phone);
+      const sellerType = z
+        .enum(["owner", "agent", "developer", "buyer"])
+        .parse(body.sellerType);
+      const { data, error } = await client.signUp.email({
         email,
         password,
         name,
@@ -65,6 +76,18 @@ export async function POST(request: NextRequest) {
           400,
           "Registration could not be completed. Check your details or try account recovery.",
         );
+      const userId = data?.user?.id;
+      if (!userId)
+        throw new HttpError(
+          503,
+          "Your account could not be prepared. Please contact support before trying again.",
+        );
+      await serverQuery("select app_private.complete_registration($1,$2,$3,$4)", [
+        userId,
+        name,
+        phone,
+        sellerType,
+      ]);
       return Response.json({
         message: "Check your email for a confirmation link before signing in.",
       });
