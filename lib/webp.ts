@@ -58,9 +58,12 @@ export function validateMetadataFreeWebp(bytes: Uint8Array): WebpDetails {
     if (type === "VP8X") {
       if (payload.length !== 10 || dimensions)
         throw new Error("Invalid extended WebP header.");
-      // Canvas output may use alpha. Metadata and animation are never retained.
-      if (payload[0] & (0x20 | 0x08 | 0x04 | 0x02))
-        throw new Error("WebP metadata or animation is not allowed.");
+      // Canvas output may include alpha and an output colour profile. Reject
+      // descriptive/location metadata and animation.
+      if (payload[0] & (0x08 | 0x04 | 0x02))
+        throw new Error(
+          "WebP descriptive metadata or animation is not allowed.",
+        );
       dimensions = {
         width: 1 + uint24(payload, 4),
         height: 1 + uint24(payload, 7),
@@ -71,6 +74,9 @@ export function validateMetadataFreeWebp(bytes: Uint8Array): WebpDetails {
     } else if (type === "VP8L") {
       imageChunks += 1;
       dimensions ||= dimensionsFromVp8l(payload);
+    } else if (type === "ICCP") {
+      if (payload.length > 1_048_576)
+        throw new Error("WebP colour profile is too large.");
     } else if (type !== "ALPH") {
       throw new Error(`Unsupported WebP chunk: ${type}`);
     }

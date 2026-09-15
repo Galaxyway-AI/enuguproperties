@@ -27,8 +27,18 @@ test("accepts one metadata-free WebP image", () => {
   assert.deepEqual(validateMetadataFreeWebp(image), { width: 100, height: 50 });
 });
 
-test("rejects WebP metadata and animation", () => {
-  for (const flag of [0x20, 0x08, 0x04, 0x02]) {
+test("accepts a bounded colour profile but rejects descriptive metadata and animation", () => {
+  const colourManaged = webp(
+    chunk("VP8X", [0x20, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    chunk("ICCP", [1, 2, 3]),
+    chunk("VP8 ", [0, 0, 0, 0x9d, 0x01, 0x2a, 1, 0, 1, 0]),
+  );
+  assert.deepEqual(validateMetadataFreeWebp(colourManaged), {
+    width: 1,
+    height: 1,
+  });
+
+  for (const flag of [0x08, 0x04, 0x02]) {
     const image = webp(
       chunk("VP8X", [flag, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
       chunk("VP8 ", [0, 0, 0, 0x9d, 0x01, 0x2a, 1, 0, 1, 0]),
