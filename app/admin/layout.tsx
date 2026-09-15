@@ -32,13 +32,12 @@ export default async function AdminLayout({
     return (
       <section className="container section">
         <div className="empty-state">
-          <h2>Staff access needs verification.</h2>
+          <h2>Staff access is not assigned.</h2>
           <p>
-            An assigned staff role and a verified authenticator session are
-            required.
+            This account is signed in but does not have an active staff role.
           </p>
-          <Link className="button" href="/account/security">
-            Verify authenticator
+          <Link className="button" href="/account/dashboard">
+            Return to your account
           </Link>
         </div>
       </section>
