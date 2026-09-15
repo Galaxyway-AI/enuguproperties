@@ -2,11 +2,25 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 export function Header() {
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const pathname = usePathname();
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/session", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((session: { signedIn?: boolean } | null) =>
+        setSignedIn(Boolean(session?.signedIn)),
+      )
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError"))
+          setSignedIn(false);
+      });
+    return () => controller.abort();
+  }, [pathname]);
   const links = [
     ["/properties", "Find a property"],
     ["/areas", "Explore Enugu"],
@@ -42,8 +56,11 @@ export function Header() {
           ))}
         </nav>
         <div className="nav-actions">
-          <Link className="login-link" href="/login">
-            Sign in
+          <Link
+            className="login-link"
+            href={signedIn ? "/account/dashboard" : "/login"}
+          >
+            {signedIn ? "My account" : "Sign in"}
           </Link>
           <Link className="button small" href="/sell">
             List a property <ArrowUpRight size={16} />
