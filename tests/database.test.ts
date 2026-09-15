@@ -19,6 +19,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0006_property_details.sql",
     "0007_beta_operations.sql",
     "0012_registration_activation.sql",
+    "0013_staff_mfa.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -37,6 +38,28 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     `insert into auth.users(id) values('${seller}'),('${other}'),('${staff}'),('${buyer}'); update public.profiles set full_name='Test account',phone='+234000000000'; insert into public.user_roles values('${staff}','super_admin');`,
   );
   await t.test(
+    "a current staff authenticator session unlocks assigned permissions",
+    async () => {
+      await sql.exec(
+        `set role authenticated; select set_config('request.jwt.claim.sub','${staff}',false); select set_config('request.jwt.claim.aal','aal1',false);`,
+      );
+      assert.deepEqual(
+        (await sql.query("select public.my_permissions() permission")).rows,
+        [],
+      );
+      await sql.exec(
+        `reset role; insert into public.staff_mfa_sessions(user_id,expires_at) values('${staff}',now()+interval '8 hours'); set role authenticated;`,
+      );
+      assert.ok(
+        (await sql.query("select public.my_permissions() permission")).rows
+          .length > 0,
+      );
+      await sql.exec(
+        `reset role; delete from public.staff_mfa_sessions where user_id='${staff}'`,
+      );
+    },
+  );
+  await t.test(
     "registration records profile details and immutable legal versions",
     async () => {
       await sql.exec(`
@@ -53,9 +76,10 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
           full_name: string;
           phone: string;
           seller_type: string;
-        }>("select full_name,phone,seller_type from public.profiles where id=$1", [
-          other,
-        ])
+        }>(
+          "select full_name,phone,seller_type from public.profiles where id=$1",
+          [other],
+        )
       ).rows[0];
       assert.deepEqual(profile, {
         full_name: "Ada Okafor",
