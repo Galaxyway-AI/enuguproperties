@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
-import { db, configured, serviceDb } from "@/lib/supabase";
+import { db, configured } from "@/lib/supabase";
+import { serverQuery } from "@/lib/server-db";
+import { getMedia } from "@/lib/storage";
 import { z } from "zod";
 export async function GET(
   _request: NextRequest,
@@ -8,13 +10,14 @@ export async function GET(
   try {
     if (!configured()) return new Response("Not found", { status: 404 });
     const id = z.uuid().parse((await params).id);
-    const service = serviceDb();
-    const { data: media } = await service
-      .from("property_media")
-      .select("storage_path,property_id,mime")
-      .eq("id", id)
-      .eq("status", "ready")
-      .single();
+    const [media] = await serverQuery<{
+      storage_path: string;
+      property_id: string;
+      mime: string;
+    }>(
+      "select storage_path,property_id,mime from public.property_media where id=$1 and status='ready' limit 1",
+      [id],
+    );
     if (!media) return new Response("Not found", { status: 404 });
     const { data: publicProperty } = await (
       await db()
@@ -24,14 +27,12 @@ export async function GET(
       .eq("id", media.property_id)
       .maybeSingle();
     if (!publicProperty) return new Response("Not found", { status: 404 });
-    const { data, error } = await service.storage
-      .from("property-media")
-      .download(media.storage_path);
-    if (error || !data) return new Response("Not found", { status: 404 });
-    return new Response(data, {
+    const object = await getMedia("property-media", media.storage_path);
+    if (!object) return new Response("Not found", { status: 404 });
+    return new Response(object.body, {
       headers: {
         "Content-Type": media.mime,
-        "Cache-Control": "public,max-age=60",
+        "Cache-Control": "public,max-age=3600,stale-while-revalidate=86400",
         "X-Content-Type-Options": "nosniff",
       },
     });

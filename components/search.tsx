@@ -57,7 +57,12 @@ export function SearchForm({
         <details
           className="filter-details"
           open={Boolean(
-            filters.q || filters.min || filters.bedrooms || filters.check,
+            filters.q ||
+            filters.min ||
+            filters.bedrooms ||
+            filters.bathrooms ||
+            filters.min_land ||
+            filters.check,
           )}
         >
           <summary>
@@ -93,6 +98,27 @@ export function SearchForm({
                   </option>
                 ))}
               </select>
+            </label>
+            <label>
+              Bathrooms
+              <select name="bathrooms" defaultValue={filters.bathrooms || ""}>
+                <option value="">Any</option>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n}+
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Minimum land size (m²)
+              <input
+                type="number"
+                min="1"
+                name="min_land"
+                defaultValue={filters.min_land}
+                placeholder="Any size"
+              />
             </label>
             <label>
               Verification check

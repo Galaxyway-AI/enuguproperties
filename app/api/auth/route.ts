@@ -9,6 +9,7 @@ import {
   errorResponse,
   HttpError,
 } from "@/lib/security";
+import { appUrl, features } from "@/lib/business";
 export async function POST(request: NextRequest) {
   try {
     sameOrigin(request);
@@ -30,12 +31,11 @@ export async function POST(request: NextRequest) {
       action === "update-password" ? "" : z.email().max(254).parse(body.email);
     await rateLimit(`auth-global:${action}`, 100, 60);
     await rateLimit(`auth:${action}:${email}`, 5, 300);
-    await checkBot(body.token);
-    const base = process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000";
+    await checkBot(body.token, action);
     if (action === "reset") {
       await client.requestPasswordReset({
         email,
-        redirectTo: `${base}/reset-password?mode=update`,
+        redirectTo: appUrl("/reset-password?mode=update"),
       });
       return Response.json({
         message:
@@ -48,12 +48,17 @@ export async function POST(request: NextRequest) {
       .max(128)
       .parse(body.password);
     if (action === "register") {
+      if (!features.registration)
+        throw new HttpError(
+          503,
+          "Seller registration is opening shortly. Contact our property team during the launch period.",
+        );
       const name = z.string().min(2).max(120).parse(body.name);
       const { error } = await client.signUp.email({
         email,
         password,
         name,
-        callbackURL: `${base}/account`,
+        callbackURL: appUrl("/account"),
       });
       if (error)
         throw new HttpError(

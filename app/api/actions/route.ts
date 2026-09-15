@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db, configured, serviceDb } from "@/lib/supabase";
+import { db, configured } from "@/lib/supabase";
+import { serverQuery } from "@/lib/server-db";
+import { createEvidenceToken } from "@/lib/signed-media";
+import { appUrl, features } from "@/lib/business";
 import {
   sameOrigin,
   rateLimit,
@@ -14,6 +17,10 @@ const uuid = (v: unknown) => z.uuid().parse(v);
 const text = (v: unknown, min = 1, max = 5000) =>
   z.string().min(min).max(max).parse(v);
 const optionalId = (v: unknown) => (v ? uuid(v) : null);
+const optionalNumber = (v: unknown, minimum: number, maximum: number) =>
+  v === "" || v === null || v === undefined
+    ? null
+    : z.coerce.number().min(minimum).max(maximum).parse(v);
 export async function POST(request: NextRequest) {
   try {
     sameOrigin(request);
@@ -32,20 +39,19 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await client.auth.getUser();
     if (action === "contact") {
-      await checkBot(body.token);
+      await checkBot(body.token, "contact");
       const email = z.email().parse(data.email);
       await rateLimit(`contact:${email}`, 3, 600);
-      const { data: ticket, error } = await serviceDb()
-        .from("support_tickets")
-        .insert({
-          user_id: user?.id || null,
+      const [ticket] = await serverQuery<{ reference: string }>(
+        "insert into public.support_tickets(user_id,email,category,message) values($1,$2,$3,$4) returning reference",
+        [
+          user?.id || null,
           email,
-          category: text(data.category, 3, 60),
-          message: text(data.message, 20),
-        })
-        .select("reference")
-        .single();
-      if (error) throw error;
+          text(data.category, 3, 60),
+          text(data.message, 20),
+        ],
+      );
+      if (!ticket) throw new Error("Support ticket was not recorded.");
       return Response.json({
         message: `Your enquiry is recorded. Reference: ${ticket.reference}.`,
       });
@@ -81,12 +87,70 @@ export async function POST(request: NextRequest) {
           .enum(["houses", "land", "commercial", "new-developments"])
           .parse(data.category),
         location_id: uuid(data.location_id),
+        property_type: z
+          .string()
+          .min(2)
+          .max(80)
+          .regex(/^[a-z0-9-]+$/)
+          .parse(data.property_type),
         price_minor: toMinor(String(data.price)),
         land_sqm: z.coerce
           .number()
           .positive()
           .max(100000000)
           .parse(data.land_sqm),
+        bedrooms: optionalNumber(data.bedrooms, 0, 100),
+        bathrooms: optionalNumber(data.bathrooms, 0, 100),
+        toilets: optionalNumber(data.toilets, 0, 100),
+        living_rooms: optionalNumber(data.living_rooms, 0, 50),
+        parking_spaces: optionalNumber(data.parking_spaces, 0, 200),
+        building_sqm: optionalNumber(data.building_sqm, 1, 100000000),
+        negotiable: data.negotiable === "on",
+        property_condition: z
+          .enum([
+            "",
+            "new",
+            "excellent",
+            "good",
+            "renovation-required",
+            "under-construction",
+          ])
+          .parse(data.property_condition || ""),
+        furnishing: z
+          .enum(["", "unfurnished", "part-furnished", "furnished"])
+          .parse(data.furnishing || ""),
+        details: {
+          floors: optionalNumber(data.floors, 1, 100),
+          year_built: optionalNumber(
+            data.year_built,
+            1900,
+            new Date().getFullYear() + 10,
+          ),
+          intended_use: z
+            .enum([
+              "",
+              "residential",
+              "commercial",
+              "mixed-use",
+              "agricultural",
+            ])
+            .parse(data.intended_use || ""),
+          topography: z
+            .enum(["", "level", "sloping", "undulating"])
+            .parse(data.topography || ""),
+          fenced:
+            data.fenced === "true"
+              ? true
+              : data.fenced === "false"
+                ? false
+                : null,
+          development_status: z
+            .enum(["", "undeveloped", "partly-developed", "serviced"])
+            .parse(data.development_status || ""),
+          road_access: z
+            .enum(["", "paved", "unpaved", "limited"])
+            .parse(data.road_access || ""),
+        },
         features:
           typeof data.features === "string"
             ? data.features
@@ -113,6 +177,8 @@ export async function POST(request: NextRequest) {
         p_agreement: uuid(data.agreement_id),
       });
     } else if (action === "checkout") {
+      if (!features.paidListings)
+        throw new HttpError(503, "Paid advertising plans are launching shortly.");
       if (!process.env.PAYSTACK_SECRET_KEY)
         throw new HttpError(503, "Advertising checkout is not available yet.");
       const order = await rpc("create_order", { p_property: uuid(body.id) });
@@ -126,7 +192,9 @@ export async function POST(request: NextRequest) {
       const kind = z
         .enum(["save", "enquire", "inspection", "offer", "report"])
         .parse(body.kind);
-      if (kind !== "save") await checkBot(body.token);
+      if (kind === "offer" && !features.offers)
+        throw new HttpError(404, "Offers are not available.");
+      if (kind !== "save") await checkBot(body.token, "buyer");
       if (kind === "offer") data.amount_minor = toMinor(String(data.amount));
       if (kind !== "save") text(data.message, kind === "inspection" ? 0 : 10);
       result = await rpc("buyer_action", {
@@ -179,14 +247,18 @@ export async function POST(request: NextRequest) {
         p_notes: data.notes || "",
         p_document: optionalId(data.document_id),
       });
-    else if (action === "offer-response")
+    else if (action === "offer-response") {
+      if (!features.offers)
+        throw new HttpError(404, "Offers are not available.");
       await rpc("respond_offer", {
         p_id: uuid(body.id),
         p_status: text(data.status, 3, 30),
         p_amount: data.amount ? toMinor(data.amount) : null,
         p_message: text(data.message, 5),
       });
-    else if (action === "transaction")
+    } else if (action === "transaction") {
+      if (!features.transactionCases)
+        throw new HttpError(404, "Transaction cases are not available.");
       result = await rpc("manage_transaction", {
         p_id: optionalId(body.id),
         p_property: optionalId(data.property_id),
@@ -195,7 +267,7 @@ export async function POST(request: NextRequest) {
         p_summary: text(data.summary, 10),
         p_sale: data.sale_price ? toMinor(data.sale_price) : null,
       });
-    else if (action === "config")
+    } else if (action === "config")
       await rpc("admin_config", {
         p_kind: text(body.kind, 1, 30),
         p_id: String(body.id || ""),
@@ -217,6 +289,15 @@ export async function POST(request: NextRequest) {
         p_id: uuid(body.id),
         p_status: text(data.status),
         p_reason: text(data.reason, 10),
+      });
+    else if (action === "beta-participant")
+      await rpc("set_beta_participant", {
+        p_id: uuid(body.id),
+        p_enabled: data.enabled === "true",
+        p_kind: z
+          .enum(["test_seller", "test_buyer", "beta_customer", "staff_qa"])
+          .parse(data.kind),
+        p_reason: text(data.reason, 10, 500),
       });
     else if (action === "queue")
       await rpc("update_queue", {
@@ -248,24 +329,26 @@ export async function POST(request: NextRequest) {
     else if (action === "document-link") {
       const { data: document, error } = await client
         .from("property_documents")
-        .select("id,storage_path")
+        .select("id,storage_path,scan_status")
         .eq("id", uuid(body.id))
         .single();
       if (error || !document)
         throw new HttpError(403, "Document access is not permitted.");
-      const service = serviceDb();
-      const { error: auditError } = await service.from("audit_logs").insert({
-        actor_id: user.id,
-        action: "document_viewed",
-        entity: "document",
-        entity_id: document.id,
+      if (document.scan_status !== "clean")
+        throw new HttpError(
+          423,
+          "This document is still in security review and cannot be opened.",
+        );
+      await serverQuery(
+        "insert into public.audit_logs(actor_id,action,entity,entity_id) values($1,'document_link_issued','document',$2)",
+        [user.id, document.id],
+      );
+      const token = createEvidenceToken(document.id, user.id);
+      return Response.json({
+        url: appUrl(
+          `/api/private-evidence/${document.id}?token=${encodeURIComponent(token)}`,
+        ),
       });
-      if (auditError) throw auditError;
-      const { data: signed, error: signError } = await service.storage
-        .from("private-evidence")
-        .createSignedUrl(document.storage_path, 60, { download: true });
-      if (signError) throw signError;
-      return Response.json({ url: signed.signedUrl });
     } else throw new HttpError(400, "Unknown action.");
     return Response.json({
       ok: true,

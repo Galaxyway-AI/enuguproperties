@@ -16,6 +16,8 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0003_storage.sql",
     "0004_operations.sql",
     "0005_release_controls.sql",
+    "0006_property_details.sql",
+    "0007_beta_operations.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -46,6 +48,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
   const payload = {
     title: "Test residential land",
     category: "land",
+    property_type: "residential-land",
     location_id: area,
     description:
       "A sufficiently detailed and factual test property description for moderation.",
@@ -56,6 +59,14 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     latitude: "6.4",
     longitude: "7.5",
     features: [],
+    negotiable: true,
+    details: {
+      intended_use: "residential",
+      topography: "level",
+      fenced: true,
+      development_status: "serviced",
+      road_access: "paved",
+    },
   };
   await as(seller);
   const property = (
@@ -64,6 +75,30 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       [JSON.stringify(payload)],
     )
   ).rows[0].id;
+  await t.test(
+    "property category and structured details are validated in PostgreSQL",
+    async () => {
+      await as(seller);
+      await assert.rejects(
+        sql.query("select public.save_property(null,$1::jsonb)", [
+          JSON.stringify({
+            ...payload,
+            title: "Invalid category combination",
+            property_type: "detached-house",
+          }),
+        ]),
+      );
+      await assert.rejects(
+        sql.query("select public.save_property(null,$1::jsonb)", [
+          JSON.stringify({
+            ...payload,
+            title: "Invalid structured details",
+            details: { ...payload.details, topography: "unknown" },
+          }),
+        ]),
+      );
+    },
+  );
   await t.test(
     "draft owner cannot directly publish, feature, verify or self-assign a role",
     async () => {
@@ -127,6 +162,31 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       );
     },
   );
+  await t.test(
+    "only MFA compliance staff can classify beta participants",
+    async () => {
+      await as(seller);
+      await assert.rejects(
+        sql.query(
+          "select public.set_beta_participant($1,true,'beta_customer','Seller cannot grant beta access')",
+          [other],
+        ),
+      );
+      await as(staff, "aal2");
+      await sql.query(
+        "select public.set_beta_participant($1,true,'beta_customer','Approved for controlled beta onboarding')",
+        [other],
+      );
+      const profile = (
+        await sql.query<{ beta_participant: boolean; beta_kind: string }>(
+          "select beta_participant,beta_kind from public.profiles where id=$1",
+          [other],
+        )
+      ).rows[0];
+      assert.equal(profile.beta_participant, true);
+      assert.equal(profile.beta_kind, "beta_customer");
+    },
+  );
   const path = `${seller}/${property}/test.webp`;
   await as("", "aal1", "service_role");
   const document = (
@@ -135,6 +195,31 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       [property, seller, path],
     )
   ).rows[0].id;
+  await t.test(
+    "quarantined evidence cannot support a completed verification",
+    async () => {
+      await as(staff, "aal2");
+      await assert.rejects(
+        sql.query(
+          `select public.record_verification($1,'authority','completed','Marketing authority evidence reviewed','Supporting authority document reviewed by staff',$2,null,null)`,
+          [property, document],
+        ),
+      );
+      await as("", "aal1", "service_role");
+    },
+  );
+  await sql.query(
+    "select public.set_document_scan_status($1,'clean','test-scanner')",
+    [document],
+  );
+  await as(staff, "aal2");
+  await assert.rejects(
+    sql.query(
+      `select public.record_verification($1,'legal','completed','Premature legal review','Feature is not operational',$2,null,null)`,
+      [property, document],
+    ),
+  );
+  await as("", "aal1", "service_role");
   await sql.query(
     `select public.attach_upload($1,$2,$3,'image',null,'Photograph','image/webp',100,'hash')`,
     [property, seller, path + "image"],
@@ -230,6 +315,15 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
         "title_type",
       ])
         assert.equal(key in row, false);
+      assert.equal(row.property_type, "residential-land");
+      assert.equal(row.negotiable, true);
+      assert.deepEqual(row.details, {
+        intended_use: "residential",
+        topography: "level",
+        fenced: true,
+        development_status: "serviced",
+        road_access: "paved",
+      });
       await assert.rejects(sql.query("select * from public.property_private"));
     },
   );
@@ -433,6 +527,10 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
           [property, staff],
         )
       ).rows[0].id;
+      await sql.query(
+        "select public.set_document_scan_status($1,'clean','test-scanner')",
+        [evidence],
+      );
       await as(staff, "aal2");
       await sql.query(
         "select public.manage_inspection($1,'completed',null,null,'Detailed physical inspection observations from today',$2)",

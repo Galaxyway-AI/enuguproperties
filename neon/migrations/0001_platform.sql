@@ -1,17 +1,16 @@
 -- Neon compatibility layer for the original PostgreSQL schema.
--- Neon Auth owns neon_auth.*. These helpers expose the authenticated JWT to the
--- existing RLS policies while keeping the application schema provider-neutral.
-create schema if not exists auth;
+-- Neon Data API owns auth.*, anonymous, and authenticated. Application RLS
+-- helpers live in app_auth so they never depend on privileges in managed schemas.
+create schema if not exists app_auth;
 
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'anonymous') then create role anonymous nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+  -- The Neon Data API provisioner owns the anonymous and authenticated roles.
   if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
 end $$;
 
-create or replace function auth.jwt() returns jsonb
+create or replace function app_auth.jwt() returns jsonb
 language sql stable
 as $$
   select coalesce(
@@ -23,14 +22,18 @@ as $$
   );
 $$;
 
-create or replace function auth.uid() returns uuid
+create or replace function app_auth.uid() returns uuid
 language sql stable
 as $$
-  select nullif(auth.jwt()->>'sub', '')::uuid;
+  select case
+    when coalesce(app_auth.jwt()->>'sub', '') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      then (app_auth.jwt()->>'sub')::uuid
+    else null
+  end;
 $$;
 
-grant usage on schema auth to anon, anonymous, authenticated, service_role;
-grant execute on function auth.jwt(), auth.uid() to anon, anonymous, authenticated, service_role;
+grant usage on schema app_auth to anon, anonymous, authenticated, service_role;
+grant execute on function app_auth.jwt(), app_auth.uid() to anon, anonymous, authenticated, service_role;
 
 
 -- Source: supabase/migrations/0001_foundation.sql
@@ -52,10 +55,10 @@ create table public.role_permissions(role_id text references public.roles, permi
 create table public.user_roles(user_id uuid references public.profiles, role_id text references public.roles, primary key(user_id,role_id));
 create function app_private.has_permission(p text) returns boolean language sql stable security definer set search_path = '' as $$
  select exists(select 1 from public.user_roles ur join public.role_permissions rp on rp.role_id=ur.role_id join public.profiles u on u.id=ur.user_id
- where ur.user_id=auth.uid() and u.status='active' and rp.permission_id=p and coalesce(auth.jwt()->>'aal','')='aal2');
+ where ur.user_id=app_auth.uid() and u.status='active' and rp.permission_id=p and coalesce(app_auth.jwt()->>'aal','')='aal2');
 $$;
 create function app_private.active_user() returns boolean language sql stable security definer set search_path = '' as $$
- select exists(select 1 from public.profiles where id=auth.uid() and status='active');
+ select exists(select 1 from public.profiles where id=app_auth.uid() and status='active');
 $$;
 create function public.my_permissions() returns setof text language sql stable security definer set search_path = '' as $$
  select p.id from public.permissions p where app_private.has_permission(p.id);
@@ -124,7 +127,7 @@ create table public.content_pages(slug text primary key, title text not null, de
 create table public.rate_limits(key text primary key, hits int not null default 1, window_start timestamptz not null default now());
 
 create function app_private.audit(action text, entity text, entity_id uuid, metadata jsonb default '{}') returns void language sql security definer set search_path='' as $$
- insert into public.audit_logs(actor_id,action,entity,entity_id,metadata) values(auth.uid(),action,entity,entity_id,metadata);
+ insert into public.audit_logs(actor_id,action,entity,entity_id,metadata) values(app_auth.uid(),action,entity,entity_id,metadata);
 $$;
 create function app_private.notify(user_id uuid, kind text, title text, body text) returns void language plpgsql security definer set search_path='' as $$
 declare n uuid; begin
@@ -145,39 +148,39 @@ create policy locations_read on public.locations for select using(active);
 create policy plans_read on public.listing_plans for select using(active or app_private.has_permission('settings'));
 create policy verification_types_read on public.verification_types for select using(true);
 create policy pages_read on public.content_pages for select using(published or app_private.has_permission('content'));
-create policy profiles_read on public.profiles for select using(id=auth.uid() or app_private.has_permission('moderate') or app_private.has_permission('compliance'));
-create policy properties_read on public.properties for select using(seller_id=auth.uid() or app_private.has_permission('moderate') or app_private.has_permission('verify') or app_private.has_permission('transactions'));
-create policy private_read on public.property_private for select using(exists(select 1 from public.properties p where p.id=property_id and p.seller_id=auth.uid()) or app_private.has_permission('moderate') or app_private.has_permission('verify'));
+create policy profiles_read on public.profiles for select using(id=app_auth.uid() or app_private.has_permission('moderate') or app_private.has_permission('compliance'));
+create policy properties_read on public.properties for select using(seller_id=app_auth.uid() or app_private.has_permission('moderate') or app_private.has_permission('verify') or app_private.has_permission('transactions'));
+create policy private_read on public.property_private for select using(exists(select 1 from public.properties p where p.id=property_id and p.seller_id=app_auth.uid()) or app_private.has_permission('moderate') or app_private.has_permission('verify'));
 create policy revisions_read on public.property_revisions for select using(app_private.has_permission('moderate'));
 create policy price_read on public.price_history for select using(app_private.has_permission('moderate'));
 create policy media_read on public.property_media for select using(exists(select 1 from public.properties p where p.id=property_id));
-create policy documents_read on public.property_documents for select using(owner_id=auth.uid() or (app_private.has_permission('compliance')) or (app_private.has_permission('verify') and exists(select 1 from public.document_types d where d.id=type_id and d.classification='property')));
+create policy documents_read on public.property_documents for select using(owner_id=app_auth.uid() or (app_private.has_permission('compliance')) or (app_private.has_permission('verify') and exists(select 1 from public.document_types d where d.id=type_id and d.classification='property')));
 create policy document_types_read on public.document_types for select using(true);
 create policy verifications_read on public.property_verifications for select using(app_private.has_permission('verify'));
-create policy reviews_read on public.moderation_reviews for select using(app_private.has_permission('moderate') or exists(select 1 from public.properties p where p.id=property_id and p.seller_id=auth.uid()));
+create policy reviews_read on public.moderation_reviews for select using(app_private.has_permission('moderate') or exists(select 1 from public.properties p where p.id=property_id and p.seller_id=app_auth.uid()));
 create policy risk_read on public.risk_flags for select using(app_private.has_permission('moderate'));
-create policy enquiries_read on public.enquiries for select using(buyer_id=auth.uid() or app_private.has_permission('support') or app_private.has_permission('transactions'));
-create policy saves_read on public.saved_properties for select using(user_id=auth.uid());
-create policy inspections_read on public.inspections for select using(buyer_id=auth.uid() or (inspector_id=auth.uid() and app_private.has_permission('inspect')) or app_private.has_permission('verify') or app_private.has_permission('support'));
-create policy evidence_read on public.inspection_evidence for select using(app_private.has_permission('verify') or exists(select 1 from public.inspections i where i.id=inspection_id and i.inspector_id=auth.uid() and app_private.has_permission('inspect')));
-create policy offers_read on public.offers for select using(buyer_id=auth.uid() or app_private.has_permission('transactions') or exists(select 1 from public.properties p where p.id=property_id and p.seller_id=auth.uid()));
+create policy enquiries_read on public.enquiries for select using(buyer_id=app_auth.uid() or app_private.has_permission('support') or app_private.has_permission('transactions'));
+create policy saves_read on public.saved_properties for select using(user_id=app_auth.uid());
+create policy inspections_read on public.inspections for select using(buyer_id=app_auth.uid() or (inspector_id=app_auth.uid() and app_private.has_permission('inspect')) or app_private.has_permission('verify') or app_private.has_permission('support'));
+create policy evidence_read on public.inspection_evidence for select using(app_private.has_permission('verify') or exists(select 1 from public.inspections i where i.id=inspection_id and i.inspector_id=app_auth.uid() and app_private.has_permission('inspect')));
+create policy offers_read on public.offers for select using(buyer_id=app_auth.uid() or app_private.has_permission('transactions') or exists(select 1 from public.properties p where p.id=property_id and p.seller_id=app_auth.uid()));
 create policy offer_events_read on public.offer_events for select using(exists(select 1 from public.offers o where o.id=offer_id));
-create policy transactions_read on public.transaction_cases for select using(buyer_id=auth.uid() or app_private.has_permission('transactions') or exists(select 1 from public.properties p where p.id=property_id and p.seller_id=auth.uid()));
+create policy transactions_read on public.transaction_cases for select using(buyer_id=app_auth.uid() or app_private.has_permission('transactions') or exists(select 1 from public.properties p where p.id=property_id and p.seller_id=app_auth.uid()));
 create policy timeline_read on public.transaction_events for select using(exists(select 1 from public.transaction_cases t where t.id=transaction_id));
-create policy agreements_read on public.agreement_versions for select using(active or app_private.has_permission('settings') or exists(select 1 from public.agreement_acceptances a where a.version_id=id and a.user_id=auth.uid()));
-create policy acceptances_read on public.agreement_acceptances for select using(user_id=auth.uid() or app_private.has_permission('compliance'));
-create policy mandates_read on public.marketing_mandates for select using(seller_id=auth.uid() or app_private.has_permission('transactions') or app_private.has_permission('finance'));
+create policy agreements_read on public.agreement_versions for select using(active or app_private.has_permission('settings') or exists(select 1 from public.agreement_acceptances a where a.version_id=id and a.user_id=app_auth.uid()));
+create policy acceptances_read on public.agreement_acceptances for select using(user_id=app_auth.uid() or app_private.has_permission('compliance'));
+create policy mandates_read on public.marketing_mandates for select using(seller_id=app_auth.uid() or app_private.has_permission('transactions') or app_private.has_permission('finance'));
 create policy commissions_read on public.commissions for select using(app_private.has_permission('finance'));
-create policy orders_read on public.orders for select using(user_id=auth.uid() or app_private.has_permission('finance'));
-create policy reports_read on public.property_reports for select using(reporter_id=auth.uid() or app_private.has_permission('moderate'));
-create policy tickets_read on public.support_tickets for select using(user_id=auth.uid() or app_private.has_permission('support'));
-create policy notifications_read on public.notifications for select using(user_id=auth.uid());
+create policy orders_read on public.orders for select using(user_id=app_auth.uid() or app_private.has_permission('finance'));
+create policy reports_read on public.property_reports for select using(reporter_id=app_auth.uid() or app_private.has_permission('moderate'));
+create policy tickets_read on public.support_tickets for select using(user_id=app_auth.uid() or app_private.has_permission('support'));
+create policy notifications_read on public.notifications for select using(user_id=app_auth.uid());
 create policy audits_read on public.audit_logs for select using(app_private.has_permission('audit'));
 create policy settings_read on public.system_settings for select using(app_private.has_permission('settings'));
 create policy providers_read on public.professional_providers for select using(app_private.has_permission('verify'));
 create policy promotions_read on public.promotions for select using(app_private.has_permission('moderate'));
-create policy organisations_read on public.organisations for select using(created_by=auth.uid() or app_private.has_permission('moderate'));
-create policy members_read on public.organisation_members for select using(user_id=auth.uid());
+create policy organisations_read on public.organisations for select using(created_by=app_auth.uid() or app_private.has_permission('moderate'));
+create policy members_read on public.organisation_members for select using(user_id=app_auth.uid());
 
 -- Deliberately owner-executed view: the only anonymous property projection.
 -- Every selected column is public; exact location, seller ID, documents and internal evidence are excluded.
@@ -210,7 +213,7 @@ grant execute on function public.my_permissions() to authenticated;
 create function public.update_profile(p_name text,p_phone text,p_type text) returns void language plpgsql security definer set search_path='' as $$
 begin
  if not app_private.active_user() or length(p_name)<2 or length(p_name)>120 or length(p_phone)>30 then raise exception 'Invalid profile'; end if;
- update public.profiles set full_name=p_name,phone=p_phone,seller_type=p_type where id=auth.uid();
+ update public.profiles set full_name=p_name,phone=p_phone,seller_type=p_type where id=app_auth.uid();
 end; $$;
 
 create function public.save_property(p_id uuid,p_data jsonb) returns uuid language plpgsql security definer set search_path='' as $$
@@ -220,13 +223,13 @@ declare p public.properties; result uuid; loc uuid; begin
  if not exists(select 1 from public.locations where id=loc and active and kind in ('area','estate','city')) then raise exception 'Choose an available area'; end if;
  if p_id is null then
  insert into public.properties(seller_id,title,category,location_id,description,price_minor,bedrooms,bathrooms,land_sqm,title_type,features)
- values(auth.uid(),p_data->>'title',p_data->>'category',loc,coalesce(p_data->>'description',''),(p_data->>'price_minor')::bigint,nullif(p_data->>'bedrooms','')::int,nullif(p_data->>'bathrooms','')::int,(p_data->>'land_sqm')::numeric,coalesce(p_data->>'title_type',''),array(select jsonb_array_elements_text(coalesce(p_data->'features','[]')))) returning id into result;
+ values(app_auth.uid(),p_data->>'title',p_data->>'category',loc,coalesce(p_data->>'description',''),(p_data->>'price_minor')::bigint,nullif(p_data->>'bedrooms','')::int,nullif(p_data->>'bathrooms','')::int,(p_data->>'land_sqm')::numeric,coalesce(p_data->>'title_type',''),array(select jsonb_array_elements_text(coalesce(p_data->'features','[]')))) returning id into result;
  update public.properties set slug=trim(both '-' from regexp_replace(lower(title),'[^a-z0-9]+','-','g'))||'-'||lower(reference) where id=result;
  insert into public.property_private(property_id,address,ownership,latitude,longitude,survey_reference) values(result,coalesce(p_data->>'address',''),coalesce(p_data->>'ownership',''),nullif(p_data->>'latitude','')::numeric,nullif(p_data->>'longitude','')::numeric,coalesce(p_data->>'survey_reference',''));
  else
  select * into p from public.properties where id=p_id for update;
- if p.seller_id is distinct from auth.uid() or p.status not in ('draft','needs_changes','live','paused','under_offer','rejected','expired') then raise exception 'Listing cannot be edited'; end if;
- insert into public.property_revisions(property_id,actor_id,revision,snapshot) values(p.id,auth.uid(),p.revision,to_jsonb(p));
+ if p.seller_id is distinct from app_auth.uid() or p.status not in ('draft','needs_changes','live','paused','under_offer','rejected','expired') then raise exception 'Listing cannot be edited'; end if;
+ insert into public.property_revisions(property_id,actor_id,revision,snapshot) values(p.id,app_auth.uid(),p.revision,to_jsonb(p));
  if p.price_minor<>(p_data->>'price_minor')::bigint then insert into public.price_history(property_id,previous_minor,new_minor) values(p.id,p.price_minor,(p_data->>'price_minor')::bigint); end if;
  update public.properties set title=p_data->>'title',category=p_data->>'category',location_id=loc,description=coalesce(p_data->>'description',''),price_minor=(p_data->>'price_minor')::bigint,bedrooms=nullif(p_data->>'bedrooms','')::int,bathrooms=nullif(p_data->>'bathrooms','')::int,land_sqm=(p_data->>'land_sqm')::numeric,title_type=coalesce(p_data->>'title_type',''),features=array(select jsonb_array_elements_text(coalesce(p_data->'features','[]'))),
  status=case when p.status in ('live','under_offer','paused') then 'under_review' else 'draft' end,revision=revision+1,updated_at=now() where id=p.id;
@@ -242,7 +245,7 @@ end; $$;
 create function public.select_plan(p_id uuid,p_plan text) returns void language plpgsql security definer set search_path='' as $$
 declare p public.properties; plan public.listing_plans; begin
  select * into p from public.properties where id=p_id for update;
- if not app_private.active_user() or p.seller_id is distinct from auth.uid() or p.status not in ('draft','needs_changes','payment_pending') then raise exception 'Plan cannot be changed'; end if;
+ if not app_private.active_user() or p.seller_id is distinct from app_auth.uid() or p.status not in ('draft','needs_changes','payment_pending') then raise exception 'Plan cannot be changed'; end if;
  select * into plan from public.listing_plans where id=p_plan and active;
  if plan.id is null then raise exception 'Plan unavailable'; end if;
  if (select count(*) from public.property_media where property_id=p.id and kind='image')>plan.photo_limit or (select count(*) from public.property_media where property_id=p.id and kind='video')>plan.video_limit then raise exception 'Remove media exceeding this plan allowance'; end if;
@@ -253,32 +256,32 @@ end; $$;
 create function public.submit_property(p_id uuid,p_agreement uuid) returns void language plpgsql security definer set search_path='' as $$
 declare p public.properties; plan public.listing_plans; a uuid; begin
  select * into p from public.properties where id=p_id for update;
- if not app_private.active_user() or p.seller_id is distinct from auth.uid() or p.status not in ('draft','needs_changes','payment_pending') then raise exception 'Listing cannot be submitted'; end if;
+ if not app_private.active_user() or p.seller_id is distinct from app_auth.uid() or p.status not in ('draft','needs_changes','payment_pending') then raise exception 'Listing cannot be submitted'; end if;
  select * into plan from public.listing_plans where id=p.plan_id and active;
  if plan.id is null then raise exception 'Select an available plan'; end if;
- if length(p.description)<50 or not exists(select 1 from public.profiles where id=auth.uid() and length(full_name)>1 and length(phone)>5) then raise exception 'Complete your profile and property description'; end if;
+ if length(p.description)<50 or not exists(select 1 from public.profiles where id=app_auth.uid() and length(full_name)>1 and length(phone)>5) then raise exception 'Complete your profile and property description'; end if;
  if not exists(select 1 from public.property_media where property_id=p.id and kind='image' and status='ready') then raise exception 'Add at least one property photograph'; end if;
  if not exists(select 1 from public.property_documents d join public.document_types dt on dt.id=d.type_id where d.property_id=p.id and dt.classification='property') then raise exception 'Upload available ownership or marketing evidence'; end if;
  if not exists(select 1 from public.agreement_versions where id=p_agreement and kind='seller' and active and legal_approved) then raise exception 'Approved seller terms are not yet available'; end if;
  if plan.price_minor>0 and not exists(select 1 from public.orders where property_id=p.id and plan_id=p.plan_id and status='paid' and plan_snapshot=p.plan_snapshot) then raise exception 'Complete the advertising payment before submitting'; end if;
- insert into public.agreement_acceptances(user_id,property_id,version_id) values(auth.uid(),p.id,p_agreement) on conflict(user_id,property_id,version_id) do nothing;
- select id into a from public.agreement_acceptances where user_id=auth.uid() and property_id=p.id and version_id=p_agreement;
- insert into public.marketing_mandates(seller_id,property_id,kind,basis_points,acceptance_id) values(auth.uid(),p.id,'percentage',coalesce((select (value->>'basis_points')::int from public.system_settings where key='commission'),200),a) on conflict(property_id) do nothing;
+ insert into public.agreement_acceptances(user_id,property_id,version_id) values(app_auth.uid(),p.id,p_agreement) on conflict(user_id,property_id,version_id) do nothing;
+ select id into a from public.agreement_acceptances where user_id=app_auth.uid() and property_id=p.id and version_id=p_agreement;
+ insert into public.marketing_mandates(seller_id,property_id,kind,basis_points,acceptance_id) values(app_auth.uid(),p.id,'percentage',coalesce((select (value->>'basis_points')::int from public.system_settings where key='commission'),200),a) on conflict(property_id) do nothing;
  update public.properties set status='submitted',plan_snapshot=coalesce(plan_snapshot,to_jsonb(plan)),updated_at=now() where id=p.id;
  perform app_private.audit('listing_submitted','property',p.id);
- perform app_private.notify(auth.uid(),'listing_submitted','Listing submitted',p.reference||' is awaiting review.');
+ perform app_private.notify(app_auth.uid(),'listing_submitted','Listing submitted',p.reference||' is awaiting review.');
 end; $$;
 
 create function public.moderate_property(p_id uuid,p_decision text,p_reason text) returns void language plpgsql security definer set search_path='' as $$
 declare p public.properties; days int; begin
  if not app_private.has_permission('moderate') or length(p_reason)<5 then raise exception 'Moderation permission and reason required'; end if;
  select * into p from public.properties where id=p_id for update;
- if p.id is null or p.seller_id=auth.uid() then raise exception 'Cannot moderate this property'; end if;
+ if p.id is null or p.seller_id=app_auth.uid() then raise exception 'Cannot moderate this property'; end if;
  if not ((p.status='submitted' and p_decision='under_review') or (p.status='under_review' and p_decision in ('live','needs_changes','rejected')) or (p.status in ('live','under_offer') and p_decision='paused')) then raise exception 'Invalid moderation transition'; end if;
  if p_decision='live' and p.plan_snapshot is null then raise exception 'Listing plan snapshot missing'; end if;
  days:=coalesce((p.plan_snapshot->>'duration_days')::int,30);
  update public.properties set status=p_decision,published_at=case when p_decision='live' then coalesce(published_at,now()) else published_at end,expires_at=case when p_decision='live' then now()+make_interval(days=>days) else expires_at end,updated_at=now() where id=p.id;
- insert into public.moderation_reviews(property_id,actor_id,decision,reason) values(p.id,auth.uid(),p_decision,p_reason);
+ insert into public.moderation_reviews(property_id,actor_id,decision,reason) values(p.id,app_auth.uid(),p_decision,p_reason);
  perform app_private.audit('moderation_'||p_decision,'property',p.id,jsonb_build_object('reason',p_reason));
  perform app_private.notify(p.seller_id,'listing_update','Listing review updated',p.reference||': '||replace(p_decision,'_',' ')||'. '||p_reason);
 end; $$;
@@ -286,24 +289,24 @@ end; $$;
 create function public.buyer_action(p_property uuid,p_action text,p_data jsonb) returns uuid language plpgsql security definer set search_path='' as $$
 declare result uuid; p public.properties; begin
  if not app_private.active_user() then raise exception 'Active account required'; end if;
- if p_action='save' and exists(select 1 from public.saved_properties where user_id=auth.uid() and property_id=p_property) then
- delete from public.saved_properties where user_id=auth.uid() and property_id=p_property;return p_property;end if;
+ if p_action='save' and exists(select 1 from public.saved_properties where user_id=app_auth.uid() and property_id=p_property) then
+ delete from public.saved_properties where user_id=app_auth.uid() and property_id=p_property;return p_property;end if;
  select * into p from public.properties where id=p_property and status in ('live','under_offer') and expires_at>now();
- if p.id is null or p.seller_id=auth.uid() or p.is_demo then raise exception 'Property unavailable for this action'; end if;
+ if p.id is null or p.seller_id=app_auth.uid() or p.is_demo then raise exception 'Property unavailable for this action'; end if;
  if p_action='save' then
- if exists(select 1 from public.saved_properties where user_id=auth.uid() and property_id=p.id) then delete from public.saved_properties where user_id=auth.uid() and property_id=p.id;
- else insert into public.saved_properties(user_id,property_id) values(auth.uid(),p.id); end if; return p.id;
- elsif p_action='enquire' then insert into public.enquiries(buyer_id,property_id,message,preferred_contact) values(auth.uid(),p.id,p_data->>'message',coalesce(p_data->>'preferred_contact','email')) returning id into result;
+ if exists(select 1 from public.saved_properties where user_id=app_auth.uid() and property_id=p.id) then delete from public.saved_properties where user_id=app_auth.uid() and property_id=p.id;
+ else insert into public.saved_properties(user_id,property_id) values(app_auth.uid(),p.id); end if; return p.id;
+ elsif p_action='enquire' then insert into public.enquiries(buyer_id,property_id,message,preferred_contact) values(app_auth.uid(),p.id,p_data->>'message',coalesce(p_data->>'preferred_contact','email')) returning id into result;
  elsif p_action='inspection' then
  if (p_data->>'preferred_at')::timestamptz<=now() then raise exception 'Choose a future inspection date'; end if;
- insert into public.inspections(property_id,buyer_id,preferred_at,attendees,overseas,notes) values(p.id,auth.uid(),(p_data->>'preferred_at')::timestamptz,coalesce((p_data->>'attendees')::int,1),coalesce((p_data->>'overseas')::boolean,false),coalesce(p_data->>'message','')) returning id into result;
+ insert into public.inspections(property_id,buyer_id,preferred_at,attendees,overseas,notes) values(p.id,app_auth.uid(),(p_data->>'preferred_at')::timestamptz,coalesce((p_data->>'attendees')::int,1),coalesce((p_data->>'overseas')::boolean,false),coalesce(p_data->>'message','')) returning id into result;
  elsif p_action='offer' then
- insert into public.offers(property_id,buyer_id,amount_minor,conditions) values(p.id,auth.uid(),(p_data->>'amount_minor')::bigint,p_data->>'message') returning id into result;
- insert into public.offer_events(offer_id,actor_id,status,amount_minor,message) values(result,auth.uid(),'submitted',(p_data->>'amount_minor')::bigint,p_data->>'message');
- elsif p_action='report' then insert into public.property_reports(property_id,reporter_id,reason,message) values(p.id,auth.uid(),p_data->>'reason',p_data->>'message') returning id into result;
+ insert into public.offers(property_id,buyer_id,amount_minor,conditions) values(p.id,app_auth.uid(),(p_data->>'amount_minor')::bigint,p_data->>'message') returning id into result;
+ insert into public.offer_events(offer_id,actor_id,status,amount_minor,message) values(result,app_auth.uid(),'submitted',(p_data->>'amount_minor')::bigint,p_data->>'message');
+ elsif p_action='report' then insert into public.property_reports(property_id,reporter_id,reason,message) values(p.id,app_auth.uid(),p_data->>'reason',p_data->>'message') returning id into result;
  else raise exception 'Unknown buyer action'; end if;
  perform app_private.audit('buyer_'||p_action,'property',p.id);
- perform app_private.notify(auth.uid(),p_action,'Request received','Your property team request has been recorded. Reference: '||result::text);
+ perform app_private.notify(app_auth.uid(),p_action,'Request received','Your property team request has been recorded. Reference: '||result::text);
  return result;
 end; $$;
 
@@ -311,7 +314,7 @@ create function public.record_verification(p_property uuid,p_type text,p_status 
 declare p public.properties; result uuid; begin
  if not app_private.has_permission('verify') then raise exception 'Verification permission required'; end if;
  select * into p from public.properties where id=p_property for update;
- if p.id is null or p.seller_id=auth.uid() then raise exception 'Independent reviewer required'; end if;
+ if p.id is null or p.seller_id=app_auth.uid() then raise exception 'Independent reviewer required'; end if;
  if p_type='identity' and not app_private.has_permission('compliance') then raise exception 'Compliance permission required for identity evidence'; end if;
  if p_document is not null and not exists(select 1 from public.property_documents d join public.document_types t on t.id=d.type_id where d.id=p_document and d.property_id=p.id and (t.classification='property' or app_private.has_permission('compliance'))) then raise exception 'Evidence unavailable'; end if;
  if p_status='completed' then
@@ -321,7 +324,7 @@ declare p public.properties; result uuid; begin
  if p_type='site' and not exists(select 1 from public.inspections i join public.inspection_evidence e on e.inspection_id=i.id where i.property_id=p.id and i.status='completed' and e.document_id=p_document and e.observed_at>=p.updated_at) then raise exception 'Completed inspection evidence is required'; end if;
  end if;
  insert into public.property_verifications(property_id,type_id,status,officer_id,public_summary,internal_notes,evidence_document_id,provider_id,property_revision,completed_at,expires_at)
- values(p.id,p_type,p_status,auth.uid(),p_summary,p_notes,p_document,p_provider,p.revision,case when p_status='completed' then now() end,p_expiry)
+ values(p.id,p_type,p_status,app_auth.uid(),p_summary,p_notes,p_document,p_provider,p.revision,case when p_status='completed' then now() end,p_expiry)
  on conflict(property_id,type_id,property_revision) do update set status=excluded.status,officer_id=excluded.officer_id,public_summary=excluded.public_summary,internal_notes=excluded.internal_notes,evidence_document_id=excluded.evidence_document_id,provider_id=excluded.provider_id,completed_at=excluded.completed_at,expires_at=excluded.expires_at returning id into result;
  perform app_private.audit('verification_'||p_status,'property',p.id,jsonb_build_object('type',p_type,'revision',p.revision));
  return result;
@@ -332,8 +335,8 @@ declare i public.inspections; begin
  select * into i from public.inspections where id=p_id for update;
  if i.id is null then raise exception 'Inspection not found'; end if;
  if p_status='completed' then
- if not app_private.has_permission('inspect') or i.inspector_id is distinct from auth.uid() or i.status<>'confirmed' or length(p_notes)<30 then raise exception 'Assigned inspector and detailed observations required'; end if;
- if not exists(select 1 from public.property_documents where id=p_document and property_id=i.property_id and owner_id=auth.uid() and type_id='inspection' and created_at>=i.created_at) then raise exception 'Inspection evidence required'; end if;
+ if not app_private.has_permission('inspect') or i.inspector_id is distinct from app_auth.uid() or i.status<>'confirmed' or length(p_notes)<30 then raise exception 'Assigned inspector and detailed observations required'; end if;
+ if not exists(select 1 from public.property_documents where id=p_document and property_id=i.property_id and owner_id=app_auth.uid() and type_id='inspection' and created_at>=i.created_at) then raise exception 'Inspection evidence required'; end if;
  insert into public.inspection_evidence(inspection_id,observed_at,observations,document_id) values(i.id,now(),p_notes,p_document);
  update public.inspections set status='completed',completed_at=now() where id=i.id;
  else
@@ -348,11 +351,11 @@ end; $$;
 create function public.respond_offer(p_id uuid,p_status text,p_amount bigint,p_message text) returns void language plpgsql security definer set search_path='' as $$
 declare o public.offers; begin
  select * into o from public.offers where id=p_id for update;
- if o.id is null or not app_private.active_user() or not (app_private.has_permission('transactions') or exists(select 1 from public.properties where id=o.property_id and seller_id=auth.uid())) then raise exception 'Offer permission required'; end if;
+ if o.id is null or not app_private.active_user() or not (app_private.has_permission('transactions') or exists(select 1 from public.properties where id=o.property_id and seller_id=app_auth.uid())) then raise exception 'Offer permission required'; end if;
  if o.status not in ('submitted','countered') or p_status not in ('accepted','rejected','countered') or length(p_message)<5 then raise exception 'Invalid offer response'; end if;
  if p_status='countered' and (p_amount is null or p_amount<=0) then raise exception 'Counter amount required'; end if;
  update public.offers set status=p_status where id=o.id;
- insert into public.offer_events(offer_id,actor_id,status,amount_minor,message) values(o.id,auth.uid(),p_status,p_amount,p_message);
+ insert into public.offer_events(offer_id,actor_id,status,amount_minor,message) values(o.id,app_auth.uid(),p_status,p_amount,p_message);
  perform app_private.audit('offer_'||p_status,'offer',o.id);
  perform app_private.notify(o.buyer_id,'offer_update','Offer updated',p_message);
 end; $$;
@@ -362,7 +365,7 @@ declare t public.transaction_cases; m public.marketing_mandates; result uuid; fe
  if not app_private.has_permission('transactions') or length(p_summary)<10 then raise exception 'Transaction permission and summary required'; end if;
  if p_id is null then
  if not exists(select 1 from public.enquiries where property_id=p_property and buyer_id=p_buyer) and not exists(select 1 from public.offers where property_id=p_property and buyer_id=p_buyer) then raise exception 'A recorded introduction is required'; end if;
- insert into public.transaction_cases(property_id,buyer_id,assigned_to) values(p_property,p_buyer,auth.uid()) returning id into result; p_stage:='buyer_qualified';
+ insert into public.transaction_cases(property_id,buyer_id,assigned_to) values(p_property,p_buyer,app_auth.uid()) returning id into result; p_stage:='buyer_qualified';
  else
  select * into t from public.transaction_cases where id=p_id for update; result:=t.id;
  if t.id is null or t.stage in ('completed','withdrawn','failed') then raise exception 'Transaction cannot be changed'; end if;
@@ -377,7 +380,7 @@ declare t public.transaction_cases; m public.marketing_mandates; result uuid; fe
  end if;
  update public.transaction_cases set stage=p_stage,sale_price_minor=case when p_stage='completed' then p_sale else sale_price_minor end where id=t.id;
  end if;
- insert into public.transaction_events(transaction_id,stage,summary,actor_id) values(result,p_stage,p_summary,auth.uid());
+ insert into public.transaction_events(transaction_id,stage,summary,actor_id) values(result,p_stage,p_summary,app_auth.uid());
  perform app_private.audit('transaction_'||p_stage,'transaction',result);
  return result;
 end; $$;
@@ -385,13 +388,13 @@ end; $$;
 create function public.create_order(p_property uuid) returns public.orders language plpgsql security definer set search_path='' as $$
 declare p public.properties; plan public.listing_plans; o public.orders; begin
  select * into p from public.properties where id=p_property for update;
- if not app_private.active_user() or p.seller_id is distinct from auth.uid() or p.status not in ('draft','payment_pending','needs_changes') then raise exception 'Checkout not available'; end if;
+ if not app_private.active_user() or p.seller_id is distinct from app_auth.uid() or p.status not in ('draft','payment_pending','needs_changes') then raise exception 'Checkout not available'; end if;
  select * into plan from public.listing_plans where id=p.plan_id and active;
  if plan.id is null or plan.price_minor<=0 then raise exception 'Choose a paid advertising plan'; end if;
  select * into o from public.orders where property_id=p.id and status='pending';
  if o.id is not null then return o; end if;
  update public.properties set status='payment_pending',plan_snapshot=to_jsonb(plan) where id=p.id;
- insert into public.orders(user_id,property_id,plan_id,plan_snapshot,amount_minor) values(auth.uid(),p.id,plan.id,to_jsonb(plan),plan.price_minor) returning * into o;
+ insert into public.orders(user_id,property_id,plan_id,plan_snapshot,amount_minor) values(app_auth.uid(),p.id,plan.id,to_jsonb(plan),plan.price_minor) returning * into o;
  perform app_private.audit('checkout_created','order',o.id); return o;
 end; $$;
 
@@ -437,11 +440,11 @@ end; $$;
 
 create function public.feature_property(p_id uuid,p_start timestamptz,p_end timestamptz) returns void language plpgsql security definer set search_path='' as $$
 begin if not app_private.has_permission('moderate') then raise exception 'Promotion permission required'; end if;
- insert into public.promotions(property_id,starts_at,ends_at,source,created_by) values(p_id,p_start,p_end,'editorial',auth.uid());
+ insert into public.promotions(property_id,starts_at,ends_at,source,created_by) values(p_id,p_start,p_end,'editorial',app_auth.uid());
  perform app_private.audit('promotion_scheduled','property',p_id);
 end; $$;
 create function public.set_account_status(p_id uuid,p_status text,p_reason text) returns void language plpgsql security definer set search_path='' as $$
-begin if not app_private.has_permission('compliance') or p_id=auth.uid() or length(p_reason)<10 then raise exception 'Compliance permission and reason required'; end if;
+begin if not app_private.has_permission('compliance') or p_id=app_auth.uid() or length(p_reason)<10 then raise exception 'Compliance permission and reason required'; end if;
  update public.profiles set status=p_status where id=p_id;
  if p_status in ('suspended','banned','restricted','closed') then update public.properties set status='paused' where seller_id=p_id and status in ('live','under_offer'); end if;
  perform app_private.audit('account_status','profile',p_id,jsonb_build_object('status',p_status,'reason',p_reason));
@@ -594,8 +597,8 @@ create unique index one_active_agreement_per_kind on public.agreement_versions(k
 create function public.save_organisation(p_name text,p_kind text) returns uuid language plpgsql security definer set search_path='' as $$
 declare result uuid;begin
  if not app_private.active_user() or length(p_name)<3 or length(p_name)>160 or p_kind not in ('agency','developer','company') then raise exception 'Valid organisation details required'; end if;
- select id into result from public.organisations where created_by=auth.uid() limit 1;
- if result is null then insert into public.organisations(name,kind,created_by) values(p_name,p_kind,auth.uid()) returning id into result;insert into public.organisation_members values(result,auth.uid(),'owner');
+ select id into result from public.organisations where created_by=app_auth.uid() limit 1;
+ if result is null then insert into public.organisations(name,kind,created_by) values(p_name,p_kind,app_auth.uid()) returning id into result;insert into public.organisation_members values(result,app_auth.uid(),'owner');
  else update public.organisations set name=p_name,kind=p_kind where id=result;end if;
  perform app_private.audit('organisation_saved','organisation',result);return result;
 end; $$;
@@ -619,3 +622,2832 @@ create policy exact_location_active on public.property_private as restrictive fo
 -- Service role needs only intentional entrypoints; enforce explicit grants independently of Supabase defaults.
 grant all on all tables in schema public to service_role;
 grant usage,select on all sequences in schema public to service_role;
+
+
+-- Source: supabase/migrations/0006_property_details.sql
+-- Typed, category-aware listing details used by the seller wizard and public search.
+alter table public.properties
+  add column if not exists property_type text not null default '' check(length(property_type) <= 80),
+  add column if not exists negotiable boolean not null default false,
+  add column if not exists toilets int check(toilets between 0 and 100),
+  add column if not exists living_rooms int check(living_rooms between 0 and 50),
+  add column if not exists parking_spaces int check(parking_spaces between 0 and 200),
+  add column if not exists building_sqm numeric check(building_sqm > 0),
+  add column if not exists property_condition text not null default '' check(property_condition in ('','new','excellent','good','renovation-required','under-construction')),
+  add column if not exists furnishing text not null default '' check(furnishing in ('','unfurnished','part-furnished','furnished')),
+  add column if not exists details jsonb not null default '{}'::jsonb check(jsonb_typeof(details) = 'object');
+
+create index if not exists properties_extended_filters
+  on public.properties(status, category, property_type, bedrooms, land_sqm);
+
+create or replace function public.save_property(p_id uuid,p_data jsonb) returns uuid language plpgsql security definer set search_path='' as $$
+declare p public.properties; result uuid; loc uuid; safe_details jsonb; begin
+ if not app_private.active_user() then raise exception 'Active account required'; end if;
+ loc:=(p_data->>'location_id')::uuid;
+ if not exists(select 1 from public.locations where id=loc and active and kind in ('area','estate','city')) then raise exception 'Choose an available area'; end if;
+ if not (
+   (p_data->>'category'='houses' and p_data->>'property_type' in ('detached-house','semi-detached-house','terraced-house','flat','bungalow')) or
+   (p_data->>'category'='land' and p_data->>'property_type' in ('residential-land','commercial-land','mixed-use-land','agricultural-land')) or
+   (p_data->>'category'='commercial' and p_data->>'property_type' in ('office','retail','warehouse','hospitality','industrial')) or
+   (p_data->>'category'='new-developments' and p_data->>'property_type' in ('residential-development','mixed-use-development','commercial-development'))
+ ) then raise exception 'Choose a property type that matches the category'; end if;
+ safe_details:=jsonb_strip_nulls(jsonb_build_object(
+   'floors',nullif(p_data->'details'->>'floors','')::int,
+   'year_built',nullif(p_data->'details'->>'year_built','')::int,
+   'intended_use',nullif(p_data->'details'->>'intended_use',''),
+   'topography',nullif(p_data->'details'->>'topography',''),
+   'fenced',case when p_data->'details'->>'fenced' in ('true','false') then (p_data->'details'->>'fenced')::boolean end,
+   'development_status',nullif(p_data->'details'->>'development_status',''),
+   'road_access',nullif(p_data->'details'->>'road_access','')
+ ));
+ if (safe_details ? 'floors' and (safe_details->>'floors')::int not between 1 and 100)
+   or (safe_details ? 'year_built' and (safe_details->>'year_built')::int not between 1900 and extract(year from now())::int + 10)
+   or (safe_details ? 'intended_use' and safe_details->>'intended_use' not in ('residential','commercial','mixed-use','agricultural'))
+   or (safe_details ? 'topography' and safe_details->>'topography' not in ('level','sloping','undulating'))
+   or (safe_details ? 'development_status' and safe_details->>'development_status' not in ('undeveloped','partly-developed','serviced'))
+   or (safe_details ? 'road_access' and safe_details->>'road_access' not in ('paved','unpaved','limited'))
+ then raise exception 'Invalid property details'; end if;
+ if p_id is null then
+  insert into public.properties(seller_id,title,category,property_type,location_id,description,price_minor,negotiable,bedrooms,bathrooms,toilets,living_rooms,parking_spaces,land_sqm,building_sqm,property_condition,furnishing,details,title_type,features)
+  values(app_auth.uid(),p_data->>'title',p_data->>'category',p_data->>'property_type',loc,coalesce(p_data->>'description',''),(p_data->>'price_minor')::bigint,coalesce((p_data->>'negotiable')::boolean,false),nullif(p_data->>'bedrooms','')::int,nullif(p_data->>'bathrooms','')::int,nullif(p_data->>'toilets','')::int,nullif(p_data->>'living_rooms','')::int,nullif(p_data->>'parking_spaces','')::int,(p_data->>'land_sqm')::numeric,nullif(p_data->>'building_sqm','')::numeric,coalesce(p_data->>'property_condition',''),coalesce(p_data->>'furnishing',''),safe_details,coalesce(p_data->>'title_type',''),array(select jsonb_array_elements_text(coalesce(p_data->'features','[]')))) returning id into result;
+  update public.properties set slug=trim(both '-' from regexp_replace(lower(title),'[^a-z0-9]+','-','g'))||'-'||lower(reference) where id=result;
+  insert into public.property_private(property_id,address,ownership,latitude,longitude,survey_reference) values(result,coalesce(p_data->>'address',''),coalesce(p_data->>'ownership',''),nullif(p_data->>'latitude','')::numeric,nullif(p_data->>'longitude','')::numeric,coalesce(p_data->>'survey_reference',''));
+ else
+  select * into p from public.properties where id=p_id for update;
+  if p.seller_id is distinct from app_auth.uid() or p.status not in ('draft','needs_changes','live','paused','under_offer','rejected','expired') then raise exception 'Listing cannot be edited'; end if;
+  insert into public.property_revisions(property_id,actor_id,revision,snapshot) values(p.id,app_auth.uid(),p.revision,to_jsonb(p));
+  if p.price_minor<>(p_data->>'price_minor')::bigint then insert into public.price_history(property_id,previous_minor,new_minor) values(p.id,p.price_minor,(p_data->>'price_minor')::bigint); end if;
+  update public.properties set title=p_data->>'title',category=p_data->>'category',property_type=p_data->>'property_type',location_id=loc,description=coalesce(p_data->>'description',''),price_minor=(p_data->>'price_minor')::bigint,negotiable=coalesce((p_data->>'negotiable')::boolean,false),bedrooms=nullif(p_data->>'bedrooms','')::int,bathrooms=nullif(p_data->>'bathrooms','')::int,toilets=nullif(p_data->>'toilets','')::int,living_rooms=nullif(p_data->>'living_rooms','')::int,parking_spaces=nullif(p_data->>'parking_spaces','')::int,land_sqm=(p_data->>'land_sqm')::numeric,building_sqm=nullif(p_data->>'building_sqm','')::numeric,property_condition=coalesce(p_data->>'property_condition',''),furnishing=coalesce(p_data->>'furnishing',''),details=safe_details,title_type=coalesce(p_data->>'title_type',''),features=array(select jsonb_array_elements_text(coalesce(p_data->'features','[]'))),
+  status=case when p.status in ('live','under_offer','paused') then 'under_review' else 'draft' end,revision=revision+1,updated_at=now() where id=p.id;
+  update public.property_private set address=coalesce(p_data->>'address',''),ownership=coalesce(p_data->>'ownership',''),latitude=nullif(p_data->>'latitude','')::numeric,longitude=nullif(p_data->>'longitude','')::numeric,survey_reference=coalesce(p_data->>'survey_reference','') where property_id=p.id;
+  update public.property_verifications set status='expired' where property_id=p.id and status='completed';
+  perform app_private.audit('material_revision','property',p.id,jsonb_build_object('previous_revision',p.revision)); result:=p.id;
+ end if;
+ if exists(select 1 from public.property_private a join public.property_private b on lower(a.address)=lower(b.address) and a.property_id<>b.property_id where a.property_id=result and length(a.address)>8) then
+  insert into public.risk_flags(property_id,reason) values(result,'Potential address match — manual review required'); end if;
+ return result;
+end; $$;
+
+drop view public.public_properties;
+create view public.public_properties as
+select p.id,p.reference,p.slug,p.title,p.description,p.category,l.name area,l.slug area_slug,p.price_minor,p.bedrooms,p.bathrooms,p.land_sqm,p.features,
+ u.seller_type,case when p.status in ('live','under_offer') and p.expires_at<=now() then 'expired' else p.status end status,p.created_at,p.updated_at,
+ exists(select 1 from public.promotions x where x.property_id=p.id and x.starts_at<=now() and x.ends_at>now()) featured,
+ exists(select 1 from public.price_history h where h.property_id=p.id and h.new_minor<h.previous_minor and h.created_at>now()-interval '30 days') price_reduced,
+ coalesce((select jsonb_agg('/api/media/'||m.id order by m.created_at) from public.property_media m where m.property_id=p.id and m.kind='image' and m.status='ready'),'[]') images,
+ coalesce((select jsonb_agg(jsonb_build_object('type',v.type_id,'summary',v.public_summary,'completed_at',v.completed_at,'expires_at',v.expires_at)) from public.property_verifications v where v.property_id=p.id and v.status='completed' and v.property_revision=p.revision and (v.expires_at is null or v.expires_at>now())),'[]') checks,
+ coalesce((select jsonb_agg('/api/media/'||m.id order by m.created_at) from public.property_media m where m.property_id=p.id and m.kind='video' and m.status='ready'),'[]') videos,
+ p.property_type,p.negotiable,p.toilets,p.living_rooms,p.parking_spaces,p.building_sqm,p.property_condition,p.furnishing,p.details
+from public.properties p join public.locations l on l.id=p.location_id join public.profiles u on u.id=p.seller_id
+where p.status in ('live','under_offer','sold','expired') and p.published_at is not null and u.status='active' and not p.is_demo;
+
+grant select on public.public_properties to anon,anonymous,authenticated;
+
+
+-- Source: supabase/migrations/0007_beta_operations.sql
+-- Stage 2.5 controlled-beta and hostile-upload controls.
+alter table public.profiles
+  add column beta_participant boolean not null default false,
+  add column beta_kind text check(beta_kind in ('test_seller','test_buyer','beta_customer','staff_qa'));
+
+alter table public.property_documents
+  add column scan_status text not null default 'quarantined'
+    check(scan_status in ('uploaded','quarantined','scanning','clean','rejected','manual_review')),
+  add column scanned_at timestamptz,
+  add column scanner_reference text;
+create index document_scan_queue on public.property_documents(scan_status,created_at);
+
+alter table public.verification_types
+  add column availability text not null default 'active'
+    check(availability in ('active','internal_only','coming_soon','disabled'));
+update public.verification_types set availability='coming_soon' where id in ('legal','survey');
+update public.verification_types set availability='internal_only' where id='official_search';
+
+create table public.job_runs(
+ id bigint generated always as identity primary key,
+ job_name text not null,
+ status text not null check(status in ('running','succeeded','failed')),
+ started_at timestamptz not null default now(),
+ finished_at timestamptz,
+ processed_count int not null default 0,
+ duration_ms int,
+ error_summary text
+);
+alter table public.job_runs enable row level security;
+create policy job_runs_read on public.job_runs for select using(app_private.has_permission('audit'));
+create policy email_outbox_ops_read on public.email_outbox for select using(app_private.has_permission('audit'));
+create index job_runs_latest on public.job_runs(job_name,started_at desc);
+
+create function public.set_document_scan_status(p_id uuid,p_status text,p_reference text) returns void language plpgsql security definer set search_path='' as $$
+begin
+ if p_status not in ('scanning','clean','rejected','manual_review') then raise exception 'Invalid scan status'; end if;
+ update public.property_documents set scan_status=p_status,scanned_at=case when p_status in ('clean','rejected','manual_review') then now() else null end,scanner_reference=nullif(left(p_reference,200),'') where id=p_id;
+ if not found then raise exception 'Document not found'; end if;
+ insert into public.audit_logs(action,entity,entity_id,metadata) values('document_scan_'||p_status,'document',p_id,jsonb_build_object('reference',left(p_reference,200)));
+end; $$;
+revoke all on function public.set_document_scan_status(uuid,text,text) from public,anon,authenticated;
+grant execute on function public.set_document_scan_status(uuid,text,text) to service_role;
+
+create function public.set_beta_participant(p_id uuid,p_enabled boolean,p_kind text,p_reason text) returns void language plpgsql security definer set search_path='' as $$
+begin
+ if not app_private.has_permission('compliance') or p_id=app_auth.uid() or length(p_reason)<10 then raise exception 'Compliance permission and reason required'; end if;
+ if p_enabled and p_kind not in ('test_seller','test_buyer','beta_customer','staff_qa') then raise exception 'Choose a beta participant type'; end if;
+ update public.profiles set beta_participant=p_enabled,beta_kind=case when p_enabled then p_kind else null end where id=p_id;
+ if not found then raise exception 'Account not found'; end if;
+ perform app_private.audit('beta_participant_updated','profile',p_id,jsonb_build_object('enabled',p_enabled,'kind',p_kind,'reason',left(p_reason,500)));
+end; $$;
+revoke all on function public.set_beta_participant(uuid,boolean,text,text) from public,anon;
+grant execute on function public.set_beta_participant(uuid,boolean,text,text) to authenticated;
+
+create function app_private.require_clean_evidence() returns trigger language plpgsql set search_path='' as $$
+begin
+ if new.status='completed' and not exists(select 1 from public.verification_types where id=new.type_id and availability in ('active','internal_only')) then
+  raise exception 'This verification type is not operational';
+ end if;
+ if new.status='completed' and (new.evidence_document_id is null or not exists(select 1 from public.property_documents where id=new.evidence_document_id and scan_status='clean')) then
+  raise exception 'Malware-cleared evidence is required';
+ end if;
+ return new;
+end; $$;
+create trigger verification_clean_evidence before insert or update on public.property_verifications for each row execute function app_private.require_clean_evidence();
+
+create function app_private.require_clean_inspection_evidence() returns trigger language plpgsql set search_path='' as $$
+begin
+ if not exists(select 1 from public.property_documents where id=new.document_id and scan_status='clean') then raise exception 'Malware-cleared inspection evidence is required'; end if;
+ return new;
+end; $$;
+create trigger inspection_clean_evidence before insert or update on public.inspection_evidence for each row execute function app_private.require_clean_inspection_evidence();
+
+grant all on public.job_runs to service_role;
+grant select on public.job_runs to authenticated;
+grant usage,select on sequence public.job_runs_id_seq to service_role;
+
+create or replace view public.public_properties as
+select p.id,p.reference,p.slug,p.title,p.description,p.category,l.name area,l.slug area_slug,p.price_minor,p.bedrooms,p.bathrooms,p.land_sqm,p.features,
+ u.seller_type,case when p.status in ('live','under_offer') and p.expires_at<=now() then 'expired' else p.status end status,p.created_at,p.updated_at,
+ exists(select 1 from public.promotions x where x.property_id=p.id and x.starts_at<=now() and x.ends_at>now()) featured,
+ exists(select 1 from public.price_history h where h.property_id=p.id and h.new_minor<h.previous_minor and h.created_at>now()-interval '30 days') price_reduced,
+ coalesce((select jsonb_agg('/api/media/'||m.id order by m.created_at) from public.property_media m where m.property_id=p.id and m.kind='image' and m.status='ready'),'[]') images,
+ coalesce((select jsonb_agg(jsonb_build_object('type',v.type_id,'summary',v.public_summary,'completed_at',v.completed_at,'expires_at',v.expires_at)) from public.property_verifications v join public.verification_types vt on vt.id=v.type_id and vt.availability='active' where v.property_id=p.id and v.status='completed' and v.property_revision=p.revision and (v.expires_at is null or v.expires_at>now())),'[]') checks,
+ coalesce((select jsonb_agg('/api/media/'||m.id order by m.created_at) from public.property_media m where m.property_id=p.id and m.kind='video' and m.status='ready'),'[]') videos,
+ p.property_type,p.negotiable,p.toilets,p.living_rooms,p.parking_spaces,p.building_sqm,p.property_condition,p.furnishing,p.details
+from public.properties p join public.locations l on l.id=p.location_id join public.profiles u on u.id=p.seller_id
+where p.status in ('live','under_offer','sold','expired') and p.published_at is not null and u.status='active' and not p.is_demo;
+
+grant select on public.public_properties to anon,anonymous,authenticated;
+
+
+-- Source: supabase/migrations/0011_approved_legal_documents.sql
+-- Publish the owner-approved 14 September 2026 legal documents.
+-- Historical text remains immutable; only availability flags may change.
+update public.agreement_versions set active=false where kind='terms' and active;
+insert into public.agreement_versions(kind,version,content,sha256,legal_approved,active)
+values('terms','2026-09-14',$enugu_terms_20260914$# TERMS OF USE
+
+**Effective date: 14 September 2026**
+
+These Terms of Use (“**Terms**”) govern access to and use of **Enugu Properties**, including the website at **https://enuguproperties.com**, user accounts, property listings, enquiries, inspections, verification features, advertising services, transaction-support features and other services made available under the Enugu Properties brand (collectively, the “**Platform**” or “**Services**”).
+
+Enugu Properties is operated by:
+
+**MAGENCY ONLINE SOLUTIONS LTD.**
+RC Number: **8229228**
+Company Type: **Private Company Limited by Shares**
+
+**Registered Address**
+
+House 10
+34V Terraces Estate
+Road No. 2
+Off Orchid Road
+Lekki 106104
+Lagos
+Nigeria
+
+**General Support:** [support@enuguproperties.com](mailto:support@enuguproperties.com)
+**Diaspora Enquiries:** [diaspora@enuguproperties.com](mailto:diaspora@enuguproperties.com)
+**WhatsApp:** +234 903 366 0763
+
+In these Terms, “**Enugu Properties**”, “**we**”, “**our**” and “**us**” mean MAGENCY ONLINE SOLUTIONS LTD. when operating the Enugu Properties Platform.
+
+By accessing or using the Platform, creating an account, submitting a Property, making an enquiry, purchasing a Service, requesting an inspection or otherwise using our Services, you agree to these Terms.
+
+If you do not agree, you should not use the Platform.
+
+---
+
+# 1. OUR SERVICE
+
+Enugu Properties is a managed property marketplace designed primarily to help people discover, advertise, investigate and progress purchases of property in Enugu, Nigeria.
+
+Our Services may include:
+
+* Property advertising;
+* seller onboarding;
+* listing moderation;
+* buyer enquiries;
+* property inspections;
+* identity checks;
+* authority-to-market checks;
+* document-review workflows;
+* official-search coordination;
+* survey or legal-professional coordination;
+* offers;
+* transaction tracking;
+* advertising plans;
+* diaspora-buyer support;
+* other related property services.
+
+The availability of individual Services may change as the Platform develops.
+
+---
+
+# 2. SOFT LAUNCH AND SERVICE AVAILABILITY
+
+Enugu Properties may release Services gradually.
+
+During an early-access or soft-launch period:
+
+* some features may be unavailable;
+* some features may be invitation-only;
+* some features may be disabled while integrations or operational processes are being tested;
+* particular verification services may not yet be offered;
+* video, payment, messaging or other functionality may be introduced later.
+
+A feature appearing in our technical architecture or informational material does not mean that the feature is currently available for purchase or use.
+
+We will not knowingly charge you for a Service that we cannot provide.
+
+Where a particular feature is unavailable, we may display it as unavailable, coming soon or temporarily disabled.
+
+---
+
+# 3. IMPORTANT PROPERTY WARNING
+
+Property transactions involve significant financial and legal risk.
+
+A Property appearing on Enugu Properties does **not**, by itself, mean that:
+
+* the Seller owns the Property;
+* legal title is perfect;
+* documents are genuine;
+* the Property is free from litigation;
+* there are no competing claims;
+* there are no mortgages or encumbrances;
+* boundaries are correct;
+* government consent has been obtained;
+* the Property is free from acquisition or planning restrictions;
+* the transaction is safe to complete.
+
+Where Enugu Properties has carried out a specific verification step, the Platform will endeavour to identify precisely what was checked.
+
+Buyers should obtain appropriate legal, survey, official-search and other professional advice before completing a Property purchase.
+
+---
+
+# 4. AGE AND CAPACITY
+
+You must normally be at least 18 years old and legally capable of entering into binding agreements to use transactional features of the Platform.
+
+If you act for:
+
+* a company;
+* Property Owner;
+* developer;
+* family;
+* estate;
+* agency;
+* partnership;
+* another person,
+
+you represent that you have appropriate authority to do so.
+
+---
+
+# 5. USER ACCOUNTS
+
+You must provide accurate information when registering.
+
+You are responsible for:
+
+* protecting your login credentials;
+* maintaining control of your email account;
+* keeping contact information reasonably current;
+* preventing unauthorised access to your Account.
+
+You must not:
+
+* impersonate another person;
+* create an Account using false identity information;
+* use another person's Account without authority;
+* attempt to acquire staff or administrator privileges;
+* defeat security controls.
+
+Notify us promptly at **[support@enuguproperties.com](mailto:support@enuguproperties.com)** if you believe your Account has been compromised.
+
+---
+
+# 6. OUR ROLE
+
+Enugu Properties may act as:
+
+* marketplace operator;
+* Property-marketing intermediary;
+* enquiry manager;
+* inspection coordinator;
+* verification coordinator;
+* transaction-support provider.
+
+Our exact role depends on the Service and the particular transaction.
+
+Use of the Platform does not by itself create:
+
+* a solicitor-client relationship;
+* a surveyor-client relationship;
+* a professional valuation engagement;
+* a fiduciary relationship.
+
+A separate Property Marketing Mandate may create specific agency or commission obligations between a Seller and Enugu Properties.
+
+---
+
+# 7. WE ARE NOT A GOVERNMENT AUTHORITY
+
+Enugu Properties is a private business.
+
+We are not:
+
+* the Enugu State Government;
+* ENGIS;
+* a land registry;
+* a planning authority;
+* a court;
+* a government ministry.
+
+Reference to official searches or government records does not imply government endorsement of Enugu Properties.
+
+---
+
+# 8. PROPERTY LISTINGS
+
+Eligible users may submit Properties for consideration.
+
+Submission does not guarantee publication.
+
+A Property may remain:
+
+* Draft;
+* Submitted;
+* Under Review;
+* Changes Required;
+* Rejected;
+* Approved;
+* Live;
+* Paused;
+* Under Offer;
+* Sold;
+* Expired;
+* Withdrawn.
+
+We may require additional information before publication.
+
+---
+
+# 9. SELLER RESPONSIBILITIES
+
+A Seller submitting Property represents, to the best of their knowledge, that:
+
+1. they have authority to advertise it;
+
+2. information supplied is not knowingly false or misleading;
+
+3. Property photographs and videos genuinely relate to the Property unless clearly identified otherwise;
+
+4. the asking price is authorised;
+
+5. documents submitted have not knowingly been forged or materially altered;
+
+6. material circumstances requested by Enugu Properties have not deliberately been concealed;
+
+7. they have the right to supply uploaded media and information.
+
+Seller-specific obligations are also governed by the **Seller Terms & Property Marketing Mandate**.
+
+---
+
+# 10. AGENTS
+
+An Agent may be required to prove that they are genuinely authorised to market a Property.
+
+Seeing another Agent's advertisement, obtaining photographs or knowing about a Property does not by itself establish authority to market it.
+
+We may contact an Owner to confirm authority.
+
+---
+
+# 11. LISTING REVIEW
+
+A “Reviewed Listing” means that the Listing has passed the applicable Enugu Properties moderation process.
+
+It does **not** necessarily mean:
+
+* ownership was independently proven;
+* title was legally verified;
+* documents were authenticated by issuing authorities;
+* an official land search was completed;
+* a solicitor approved the transaction.
+
+---
+
+# 12. VERIFICATION STATUSES
+
+Different verification statuses mean different things.
+
+### Identity Verified
+
+The relevant person's identity was checked under the applicable procedure.
+
+This does not prove Property ownership.
+
+### Authority to Market Confirmed
+
+Evidence supporting authority to advertise was reviewed.
+
+This does not by itself establish good legal title.
+
+### Site Inspected
+
+The Property or site was physically visited under the applicable inspection procedure.
+
+This does not establish ownership.
+
+### Documents Reviewed
+
+Certain submitted documents were reviewed at the stated level.
+
+This does not necessarily mean the issuing authority authenticated them.
+
+### Official Search Completed
+
+An identified official search was completed and recorded.
+
+Its scope, date and limitations remain relevant.
+
+### Survey Reviewed
+
+Relevant survey information was reviewed through the applicable professional or operational procedure.
+
+### Legal Due Diligence Completed
+
+A defined legal review was completed through an appropriately qualified professional.
+
+Only verification services currently enabled by Enugu Properties should be treated as available.
+
+---
+
+# 13. VERIFICATION CANNOT BE BOUGHT
+
+Advertising and verification are separate.
+
+Purchasing:
+
+* Plus;
+* Premium;
+* Featured placement;
+* advertising boosts;
+* promotional services
+
+does not purchase a Verification badge.
+
+---
+
+# 14. VERIFICATION MAY CHANGE
+
+Verification reflects circumstances and information available at a particular time.
+
+We may suspend, expire or remove a verification where:
+
+* material Property details change;
+* documentation changes;
+* credible contrary information emerges;
+* the verification becomes outdated;
+* a complaint raises legitimate concerns.
+
+---
+
+# 15. PROPERTY INSPECTIONS
+
+Where available, users may request physical or remote inspections.
+
+Unless expressly described otherwise, an ordinary Enugu Properties inspection is **not**:
+
+* a structural survey;
+* valuation;
+* title investigation;
+* engineering report;
+* environmental assessment;
+* planning approval.
+
+---
+
+# 16. PROFESSIONAL SERVICES
+
+Property transactions may require independent:
+
+* solicitors;
+* licensed surveyors;
+* registered estate surveyors and valuers;
+* engineers;
+* architects;
+* tax professionals.
+
+Where an independent Professional Provider carries out work, that provider remains responsible for their professional service.
+
+Enugu Properties must not be treated as providing regulated professional services merely because we coordinate access to a professional.
+
+---
+
+# 17. BUYER RESPONSIBILITIES
+
+Before completing a purchase, Buyers should consider appropriate steps including:
+
+* inspecting the Property;
+* verifying Seller identity;
+* confirming authority to sell;
+* reviewing title documentation;
+* obtaining official searches;
+* obtaining legal advice;
+* checking surveys and boundaries;
+* investigating disputes and encumbrances;
+* confirming payment instructions independently.
+
+Never transfer significant Property purchase money solely because a Property appears on our website.
+
+---
+
+# 18. DIASPORA BUYERS
+
+Enugu Properties may assist Buyers located outside Nigeria.
+
+Services may include:
+
+* enquiries;
+* remote inspections;
+* video inspections where available;
+* document coordination;
+* transaction updates;
+* professional-service coordination.
+
+Diaspora enquiries may be sent to:
+
+**[diaspora@enuguproperties.com](mailto:diaspora@enuguproperties.com)**
+
+We do not currently represent that Enugu Properties maintains a United Kingdom office unless and until UK contact information is expressly published.
+
+---
+
+# 19. ENQUIRIES
+
+When a Buyer enquires about a Property, we may create a record linking:
+
+* Buyer;
+* Property;
+* Seller;
+* enquiry;
+* inspection;
+* subsequent offer or transaction.
+
+We may share information reasonably necessary to progress the enquiry.
+
+---
+
+# 20. SELLER CONTACT INFORMATION
+
+We may withhold a Seller's direct:
+
+* phone;
+* email;
+* WhatsApp;
+* exact Property address
+
+from public display.
+
+Buyer communications may instead be routed through Enugu Properties.
+
+---
+
+# 21. OFFERS
+
+Where available, the Platform may allow Buyers to submit offers.
+
+An offer or acceptance recorded through Enugu Properties does not by itself:
+
+* transfer ownership;
+* replace formal conveyancing documents;
+* establish legal title;
+* satisfy statutory consent requirements;
+* constitute registration of Property.
+
+A recent Nigerian Supreme Court decision also reinforces the importance of a genuine agency relationship and effective causal role when commission is claimed, rather than commission arising merely from unsolicited introduction.
+
+---
+
+# 22. TRANSACTION CASES
+
+We may maintain a private transaction record containing milestones such as:
+
+* enquiry;
+* inspection;
+* offer;
+* acceptance;
+* due diligence;
+* contract stage;
+* completion.
+
+These statuses are administrative records.
+
+They are not substitutes for legal documents.
+
+---
+
+# 23. PROPERTY PURCHASE MONEY
+
+Unless Enugu Properties expressly introduces and identifies a properly structured escrow or payment service in the future:
+
+**Do not send Property purchase money to Enugu Properties.**
+
+Normal online payments to Enugu Properties are intended only for clearly identified Platform Services.
+
+---
+
+# 24. LISTING PLANS
+
+We may provide free and paid Listing plans.
+
+Plans may differ by:
+
+* Listing duration;
+* photographs;
+* video where enabled;
+* analytics;
+* search placement;
+* featured exposure;
+* other promotional features.
+
+Prices and material features must be disclosed before purchase.
+
+---
+
+# 25. DISABLED FEATURES
+
+Where a feature such as video uploading, online payment or a particular verification service is disabled, users must not rely on old promotional material or screenshots as evidence that it is currently available.
+
+The live Platform and checkout information control current availability.
+
+---
+
+# 26. PAYMENTS FOR PLATFORM SERVICES
+
+Where enabled, payments may be processed through providers such as Paystack.
+
+A browser redirect to Enugu Properties is not independent proof that payment succeeded.
+
+We may verify payment server-side before activating the Service.
+
+---
+
+# 27. REFUNDS
+
+Refund requests are considered in accordance with applicable law.
+
+In general:
+
+* duplicate charges should be corrected;
+* Services we fail to supply may qualify for an appropriate remedy;
+* advertising already materially delivered may not be fully refundable;
+* Seller withdrawal does not automatically create a refund;
+* payment does not guarantee approval of a fraudulent or non-compliant Listing.
+
+Nothing in these Terms removes mandatory consumer rights.
+
+---
+
+# 28. SUCCESS COMMISSION
+
+Where a Seller enters a separate Property Marketing Mandate, Enugu Properties may become entitled to the specifically agreed Success Fee when the conditions of that Mandate are met.
+
+The applicable:
+
+* commission percentage;
+* fixed fee;
+* completion trigger;
+* introduced-Buyer provisions;
+* mandate duration;
+* Tail Period
+
+must appear in the Seller's accepted mandate.
+
+There is no undisclosed Success Fee merely because these general Terms exist.
+
+---
+
+# 29. FRAUD PREVENTION AND COMPLIANCE
+
+We may request information reasonably necessary for:
+
+* identity checks;
+* authority checks;
+* fraud prevention;
+* anti-money laundering compliance;
+* legal obligations;
+* Property investigation.
+
+We may pause or decline Services where legitimate concerns exist.
+
+---
+
+# 30. PROHIBITED USE
+
+You must not use the Platform to:
+
+* advertise Property without authority;
+* commit fraud;
+* submit forged documents;
+* advertise nonexistent Property;
+* knowingly misrepresent material Property facts;
+* launder money;
+* harass users or staff;
+* upload malware;
+* breach another user's account;
+* bypass access controls;
+* scrape our database for competing commercial purposes;
+* manipulate payments;
+* manipulate verification;
+* falsely claim staff or professional status.
+
+---
+
+# 31. PROPERTY REPORTS
+
+Users may report suspicious Listings.
+
+Reports must be made honestly.
+
+We may pause a Property while investigating a credible report.
+
+A report does not automatically establish wrongdoing.
+
+---
+
+# 32. CONTENT LICENCE
+
+When you upload lawful Property media or descriptions, you grant Enugu Properties a non-exclusive licence to host, resize, display, distribute and promote that material for legitimate Property-marketing and Platform purposes.
+
+You must have appropriate rights to provide the material.
+
+---
+
+# 33. INTELLECTUAL PROPERTY
+
+Enugu Properties owns or licenses the rights in its:
+
+* brand;
+* software;
+* interface;
+* original content;
+* database design;
+* verification framework;
+* graphics.
+
+You must not reproduce substantial parts of the Platform for unauthorised commercial purposes.
+
+---
+
+# 34. THIRD-PARTY SERVICES
+
+The Platform may rely on providers such as:
+
+* Cloudflare;
+* Neon;
+* payment providers;
+* transactional email providers;
+* mapping providers;
+* Professional Providers.
+
+Their services may occasionally be unavailable.
+
+Their own terms and privacy notices may apply where you interact directly with them.
+
+---
+
+# 35. PRIVACY
+
+Personal information is processed in accordance with our Privacy Policy.
+
+Sensitive Property evidence must not be treated as publicly available merely because it was uploaded through the Platform.
+
+---
+
+# 36. ELECTRONIC COMMUNICATIONS
+
+We may send necessary communications concerning:
+
+* Accounts;
+* Listings;
+* payments;
+* inspections;
+* verification;
+* enquiries;
+* transactions;
+* security.
+
+These may be sent by email, in-app notification, telephone or WhatsApp where appropriate.
+
+Optional marketing communications will be treated separately where required.
+
+---
+
+# 37. SERVICE SECURITY
+
+We take reasonable measures designed to protect the Platform.
+
+No online system can be guaranteed completely secure.
+
+Users must independently verify unusual requests concerning:
+
+* money;
+* changing bank details;
+* passwords;
+* identity documents.
+
+---
+
+# 38. SUSPENSION AND TERMINATION
+
+We may reasonably suspend:
+
+* an Account;
+* Listing;
+* verification;
+* transaction process
+
+for reasons including:
+
+* suspected fraud;
+* false information;
+* security concerns;
+* abuse;
+* non-payment;
+* legal requirements.
+
+Serious concerns may require immediate action.
+
+---
+
+# 39. INFORMATION ACCURACY
+
+Property information may come from:
+
+* Sellers;
+* Agents;
+* Professional Providers;
+* public sources;
+* our own inspections.
+
+We take steps intended to improve accuracy but cannot guarantee that every fact remains current.
+
+---
+
+# 40. NO GUARANTEE OF SALE OR INVESTMENT RETURN
+
+We do not guarantee:
+
+* sale;
+* enquiries;
+* transaction completion;
+* achievement of asking price;
+* Property appreciation;
+* investment return.
+
+Property-market commentary is general information unless expressly stated otherwise.
+
+---
+
+# 41. CONSUMER RIGHTS
+
+Nothing in these Terms removes rights or remedies that cannot lawfully be excluded.
+
+We will not interpret these Terms as excluding liability that Nigerian law does not permit us to exclude.
+
+In particular, nothing excludes liability for our own:
+
+* fraud;
+* fraudulent misrepresentation;
+* wilful misconduct;
+* or other liability that cannot lawfully be excluded.
+
+---
+
+# 42. LIMITATION OF LIABILITY
+
+Subject to mandatory law, Enugu Properties will not ordinarily be responsible for loss caused solely by:
+
+* false information supplied by another user;
+* Seller lack of authority;
+* a Buyer's failure to undertake reasonable due diligence;
+* market movements;
+* independent third-party professional conduct;
+* payment made contrary to clear safety warnings;
+* matters outside our reasonable control.
+
+Any limitation must be interpreted consistently with applicable Nigerian consumer law.
+
+---
+
+# 43. PLATFORM AVAILABILITY
+
+We do not guarantee uninterrupted availability.
+
+We may temporarily suspend parts of the Platform for:
+
+* security;
+* maintenance;
+* upgrades;
+* third-party outages;
+* operational reasons.
+
+---
+
+# 44. COMPLAINTS
+
+Complaints should be sent to:
+
+**[support@enuguproperties.com](mailto:support@enuguproperties.com)**
+
+Include your Property, enquiry, payment or transaction reference where available.
+
+---
+
+# 45. DISPUTE RESOLUTION
+
+We encourage users first to contact us and attempt good-faith resolution.
+
+This does not prevent:
+
+* urgent court relief;
+* regulatory complaints;
+* exercise of mandatory consumer rights.
+
+Separate Seller or commercial agreements may contain additional provisions.
+
+---
+
+# 46. GOVERNING LAW
+
+These Terms are governed by the laws of the **Federal Republic of Nigeria**.
+
+Property transactions may additionally be subject to relevant laws and procedures of the State in which the Property is situated.
+
+---
+
+# 47. CHANGES TO THESE TERMS
+
+We may update these Terms as the Platform develops or legal requirements change.
+
+Material changes may be notified through:
+
+* email;
+* Account notice;
+* prominent website notice.
+
+We may require acceptance of updated Terms before certain future Services are used.
+
+Historical agreements will retain their applicable version.
+
+---
+
+# 48. SEVERABILITY
+
+If one part of these Terms is invalid or unenforceable, the remaining provisions continue to apply to the extent permitted by law.
+
+---
+
+# 49. CONTACT
+
+**Enugu Properties**
+Operated by **MAGENCY ONLINE SOLUTIONS LTD.**
+
+RC Number: **8229228**
+
+House 10
+34V Terraces Estate
+Road No. 2
+Off Orchid Road
+Lekki 106104
+Lagos
+Nigeria
+
+**Support:** [support@enuguproperties.com](mailto:support@enuguproperties.com)
+**Diaspora:** [diaspora@enuguproperties.com](mailto:diaspora@enuguproperties.com)
+**WhatsApp:** +234 903 366 0763
+
+## END OF TERMS OF USE
+$enugu_terms_20260914$,'2d1d608b760dc37af83b6f89008bce937786aa800033eb0cc2714fe01f0269e4',true,true)
+on conflict(kind,version) do update set legal_approved=true,active=true;
+
+update public.agreement_versions set active=false where kind='privacy' and active;
+insert into public.agreement_versions(kind,version,content,sha256,legal_approved,active)
+values('privacy','2026-09-14',$enugu_privacy_20260914$# PRIVACY POLICY
+
+**Effective date: 14 September 2026**
+
+Enugu Properties respects your privacy and is committed to protecting personal information entrusted to us.
+
+This Privacy Policy explains how **MAGENCY ONLINE SOLUTIONS LTD.**, operating as Enugu Properties, collects, uses, stores, discloses, protects and otherwise processes personal data.
+
+**Website:** https://enuguproperties.com
+
+**Company:** MAGENCY ONLINE SOLUTIONS LTD.
+**RC Number:** 8229228
+**Company Type:** Private Company Limited by Shares
+
+**Registered Address**
+
+House 10
+34V Terraces Estate
+Road No. 2
+Off Orchid Road
+Lekki 106104
+Lagos
+Nigeria
+
+**Support:** [support@enuguproperties.com](mailto:support@enuguproperties.com)
+**Diaspora:** [diaspora@enuguproperties.com](mailto:diaspora@enuguproperties.com)
+**WhatsApp:** +234 903 366 0763
+
+---
+
+# 1. SCOPE
+
+This Privacy Policy applies to personal data concerning:
+
+* visitors;
+* account holders;
+* Buyers;
+* Sellers;
+* Property Owners;
+* Agents;
+* developers;
+* company representatives;
+* inspectors;
+* Professional Providers;
+* diaspora customers;
+* support contacts;
+* people reporting suspicious Property activity.
+
+---
+
+# 2. APPLICABLE LAW
+
+Our processing is principally governed by the **Nigeria Data Protection Act 2023** and applicable regulations, directives and guidance of the Nigeria Data Protection Commission.
+
+The Nigerian framework recognises rights including access, correction, objection, restriction, portability and erasure in qualifying circumstances, together with protections relating to automated decision-making.
+
+---
+
+# 3. OUR PRIVACY PRINCIPLES
+
+We aim to process personal data:
+
+* lawfully;
+* fairly;
+* transparently;
+* for defined purposes;
+* proportionately;
+* accurately where necessary;
+* securely;
+* for no longer than reasonably necessary.
+
+We do not intentionally collect highly sensitive information merely because it might become useful later.
+
+---
+
+# 4. SOFT-LAUNCH SERVICES
+
+Enugu Properties may make Services available progressively.
+
+If a Service is disabled, we do not intentionally collect information through that disabled functionality.
+
+For example, if online payments or video uploads are disabled, the Platform should not invite users to submit related information through those unavailable Services.
+
+---
+
+# 5. ACCOUNT INFORMATION
+
+When you register, we may process:
+
+* first name;
+* last name;
+* display name;
+* email;
+* telephone;
+* WhatsApp;
+* country;
+* Account type;
+* preferences;
+* authentication information.
+
+Passwords should be processed in protected form and are not intended to be readable by ordinary staff.
+
+---
+
+# 6. SELLER INFORMATION
+
+Sellers may provide:
+
+* identity;
+* contact details;
+* Seller type;
+* organisation;
+* relationship to Property;
+* authority information;
+* Listing history;
+* Property details;
+* asking price;
+* photographs;
+* documents;
+* inspection information.
+
+---
+
+# 7. PROPERTY DOCUMENTS
+
+Depending on the Property, Sellers may submit documents such as:
+
+* Certificate of Occupancy;
+* Right of Occupancy;
+* Deed of Assignment;
+* Deed of Conveyance;
+* Allocation Letter;
+* Survey Plan;
+* Power of Attorney;
+* probate documents;
+* company records;
+* authority-to-market evidence.
+
+These may contain information about people other than the user uploading them.
+
+Private Property documents are not intended to become publicly accessible merely because they are uploaded.
+
+---
+
+# 8. IDENTITY INFORMATION
+
+Where legitimately required, we may process information such as:
+
+* legal name;
+* address;
+* date of birth;
+* photograph;
+* government identification;
+* identification reference;
+* company information.
+
+We aim to collect enhanced identity information only when justified by the relevant Service, transaction or legal requirement.
+
+---
+
+# 9. NATIONAL IDENTIFICATION INFORMATION
+
+We do not require highly sensitive national identification information from ordinary website visitors.
+
+Where such information becomes legitimately necessary for verification or legal compliance, we aim to:
+
+* collect only what is justified;
+* restrict access;
+* protect it;
+* avoid public disclosure;
+* apply appropriate retention controls.
+
+Do not send national identification information through ordinary contact forms unless specifically requested through an approved secure process.
+
+---
+
+# 10. PROPERTY LOCATION
+
+We may process:
+
+* State;
+* LGA;
+* town;
+* area;
+* estate;
+* address;
+* latitude;
+* longitude.
+
+Exact coordinates may be stored privately while only an approximate area is shown publicly.
+
+---
+
+# 11. INSPECTION INFORMATION
+
+Property inspections may generate:
+
+* date;
+* time;
+* Property reference;
+* inspector;
+* photographs;
+* video where enabled;
+* location confirmation;
+* GPS;
+* notes;
+* observations;
+* representative present.
+
+Inspection evidence is generally restricted unless specific information is deliberately approved for public display.
+
+---
+
+# 12. BUYER INFORMATION
+
+Buyer information may include:
+
+* name;
+* email;
+* telephone;
+* WhatsApp;
+* country;
+* enquiries;
+* saved Properties;
+* inspection requests;
+* offers;
+* transaction communications.
+
+---
+
+# 13. DIASPORA INFORMATION
+
+Where you contact us from outside Nigeria, we may process:
+
+* country of residence;
+* contact details;
+* Property interests;
+* remote-inspection needs;
+* communication preferences.
+
+Diaspora enquiries may be handled through:
+
+**[diaspora@enuguproperties.com](mailto:diaspora@enuguproperties.com)**
+
+We currently do not represent that we maintain a UK office unless UK contact details are later expressly published.
+
+---
+
+# 14. OFFERS AND TRANSACTIONS
+
+Where these features are enabled, we may process:
+
+* offer amount;
+* parties;
+* Property;
+* conditions;
+* acceptance or rejection;
+* milestones;
+* due-diligence status;
+* transaction records;
+* commission information.
+
+---
+
+# 15. PAYMENT INFORMATION
+
+Where payment functionality is enabled, we may process:
+
+* customer;
+* amount;
+* currency;
+* purpose;
+* payment reference;
+* payment status;
+* refund information.
+
+Payment providers such as **Paystack** may process card or bank information directly.
+
+Enugu Properties does not intend to store complete card numbers or card security codes in its normal application database.
+
+---
+
+# 16. PROPERTY PURCHASE MONEY
+
+Our ordinary payment system is intended for Enugu Properties Services, not general Property purchase funds.
+
+We do not currently operate a general Property escrow service.
+
+---
+
+# 17. SUPPORT AND COMMUNICATIONS
+
+We may process communications made through:
+
+* contact forms;
+* email;
+* telephone;
+* WhatsApp;
+* support requests;
+* Property enquiries;
+* reports.
+
+Relevant communications may be retained for support, fraud prevention, transaction administration and dispute resolution.
+
+---
+
+# 18. TECHNICAL INFORMATION
+
+When you use the Platform, we may receive:
+
+* IP address;
+* browser;
+* device;
+* operating system;
+* session identifiers;
+* page requests;
+* timestamps;
+* security events;
+* error information;
+* approximate network location.
+
+---
+
+# 19. AUDIT LOGS
+
+We may record important events including:
+
+* registration;
+* authentication;
+* Property changes;
+* moderation;
+* document access;
+* verification;
+* payment events;
+* inspection activity;
+* staff actions.
+
+These logs help establish accountability and protect users.
+
+---
+
+# 20. HOW WE RECEIVE INFORMATION
+
+Information may come:
+
+* directly from you;
+* from an Owner or Agent;
+* from organisations;
+* from Professional Providers;
+* from official sources;
+* from another user making a report;
+* automatically through use of the Platform.
+
+---
+
+# 21. PURPOSES OF PROCESSING
+
+We process information for purposes such as:
+
+* creating Accounts;
+* authenticating users;
+* publishing Property;
+* moderation;
+* verification;
+* Property inspections;
+* buyer enquiries;
+* offers;
+* transaction support;
+* payments;
+* customer support;
+* fraud prevention;
+* security;
+* record keeping;
+* legal compliance;
+* Platform improvement.
+
+---
+
+# 22. LAWFUL BASES
+
+Depending on the activity, we may rely on:
+
+### Contract
+
+Where processing is needed to provide an agreed Service.
+
+### Steps Before Contract
+
+Where you ask us to take steps before entering into an arrangement.
+
+### Legal Obligation
+
+Where processing is required by applicable law.
+
+### Legitimate Interests
+
+Including:
+
+* fraud prevention;
+* marketplace safety;
+* moderation;
+* cybersecurity;
+* record keeping;
+* protecting Buyers and Sellers.
+
+### Consent
+
+Where consent is appropriate, such as certain optional marketing or non-essential technologies.
+
+Consent is not used artificially where another legal basis properly applies.
+
+---
+
+# 23. FRAUD PREVENTION
+
+We may use information to identify possible:
+
+* duplicate Properties;
+* conflicting Sellers;
+* repeated rejected Listings;
+* unusual Account activity;
+* payment abuse;
+* suspicious document patterns.
+
+A risk indicator does not automatically mean fraud occurred.
+
+Where significant action is contemplated, appropriate human review should be used.
+
+---
+
+# 24. AUTOMATED SYSTEMS
+
+Automated processes may assist with:
+
+* bot detection;
+* rate limiting;
+* file validation;
+* duplicate detection;
+* queue prioritisation;
+* technical security.
+
+We do not intend to determine legal ownership of Property solely through an automated algorithm.
+
+---
+
+# 25. RECIPIENTS OF INFORMATION
+
+Personal data may be shared where reasonably necessary with:
+
+* Buyers;
+* Sellers;
+* authorised staff;
+* inspectors;
+* Professional Providers;
+* payment processors;
+* email providers;
+* infrastructure providers;
+* regulators;
+* law enforcement where lawfully required.
+
+We aim to share only information reasonably necessary for the purpose.
+
+---
+
+# 26. TECHNOLOGY PROVIDERS
+
+We currently use or may use providers including:
+
+### Cloudflare
+
+For website infrastructure, security, bot protection and object storage.
+
+### Neon
+
+For database and related application infrastructure.
+
+### Resend
+
+For transactional email where enabled.
+
+### Paystack
+
+For online payment processing where enabled.
+
+### Mapping providers
+
+Where map functionality is enabled.
+
+Provider usage may change as the Platform develops.
+
+---
+
+# 27. PUBLIC INFORMATION
+
+Approved Listing information may become publicly visible, including:
+
+* Property title;
+* general location;
+* asking price;
+* description;
+* Property features;
+* photographs;
+* public video where enabled;
+* public verification status.
+
+---
+
+# 28. INFORMATION NOT PUBLIC BY DEFAULT
+
+We do not ordinarily publish:
+
+* government IDs;
+* NIN;
+* private title documents;
+* private Seller address;
+* internal risk flags;
+* private verification evidence;
+* moderator notes;
+* payment information;
+* hidden GPS coordinates.
+
+---
+
+# 29. PRIVATE FILE STORAGE
+
+Confidential evidence is intended to use restricted storage and authorised access.
+
+Controls may include:
+
+* private object storage;
+* authentication;
+* role-based access;
+* temporary signed links;
+* access logging;
+* quarantine;
+* malware/security review.
+
+---
+
+# 30. FILE SECURITY
+
+Uploaded files may be:
+
+* validated;
+* quarantined;
+* scanned where the relevant system is available;
+* manually reviewed;
+* rejected.
+
+A file should not be represented as security-cleared unless the applicable review has actually occurred.
+
+---
+
+# 31. SECURITY MEASURES
+
+Measures may include:
+
+* encryption in transit;
+* restricted access;
+* row-level database controls;
+* private storage;
+* temporary access links;
+* audit logs;
+* multi-factor authentication;
+* rate limiting;
+* bot protection;
+* CSRF controls;
+* backups;
+* monitoring.
+
+No system can guarantee absolute security.
+
+---
+
+# 32. STAFF ACCESS
+
+Staff access should be based on legitimate role and need.
+
+Having an administrator account does not necessarily entitle a person to view every sensitive record.
+
+---
+
+# 33. INTERNATIONAL PROCESSING
+
+Some infrastructure providers may process information outside Nigeria.
+
+Where required, we seek to use appropriate lawful safeguards for international processing.
+
+A diaspora customer should expect that information submitted outside Nigeria may be processed by our team in Nigeria and by infrastructure providers operating internationally.
+
+---
+
+# 34. DATA RETENTION
+
+We retain personal data only for as long as reasonably necessary, taking account of:
+
+* Service provision;
+* transaction records;
+* fraud prevention;
+* disputes;
+* accounting;
+* legal requirements;
+* security.
+
+Different categories may have different retention periods.
+
+---
+
+# 35. ACCOUNT CLOSURE
+
+Closing an Account does not automatically require immediate deletion of every record.
+
+Information may remain where legitimately needed for:
+
+* completed transactions;
+* financial records;
+* disputes;
+* fraud prevention;
+* legal obligations.
+
+---
+
+# 36. PROPERTY HISTORY
+
+Expired, sold, withdrawn or rejected Listings may be retained internally where reasonably necessary for:
+
+* transaction history;
+* Seller history;
+* fraud prevention;
+* dispute records;
+* audit purposes.
+
+---
+
+# 37. PRIVATE DOCUMENT RETENTION
+
+We aim not to retain sensitive Property or identity documents indefinitely without justification.
+
+Retention decisions should take account of:
+
+* active Property status;
+* transaction status;
+* verification;
+* disputes;
+* applicable law.
+
+---
+
+# 38. BACKUPS
+
+Information may remain temporarily in protected backups following deletion until normal backup-retention periods expire.
+
+---
+
+# 39. YOUR RIGHTS
+
+Subject to applicable law, you may have rights to:
+
+* be informed;
+* access personal data;
+* correct inaccurate information;
+* request erasure;
+* request restriction;
+* object to certain processing;
+* obtain certain data in portable form;
+* withdraw consent where consent is the applicable basis;
+* seek appropriate review of significant automated decisions;
+* complain to the competent regulator.
+
+---
+
+# 40. PRIVACY REQUESTS
+
+Send privacy requests to:
+
+**[support@enuguproperties.com](mailto:support@enuguproperties.com)**
+
+Use the subject:
+
+**Privacy Request**
+
+where possible.
+
+We may verify your identity before fulfilling sensitive requests.
+
+---
+
+# 41. ERASURE IS NOT ABSOLUTE
+
+We may retain information where legitimately necessary for:
+
+* legal obligations;
+* accounting;
+* fraud prevention;
+* legal claims;
+* transaction records;
+* security.
+
+Where appropriate, information may instead be anonymised or restricted.
+
+---
+
+# 42. MARKETING
+
+Optional marketing communications may be unsubscribed from.
+
+Necessary transactional or security communications may still be sent, including:
+
+* password resets;
+* Listing moderation;
+* payment notifications;
+* inspection updates;
+* security alerts.
+
+---
+
+# 43. COOKIES
+
+We may use cookies or similar technologies for:
+
+* login;
+* security;
+* preferences;
+* fraud prevention;
+* Platform operation;
+* analytics where enabled.
+
+Non-essential technologies will be handled in accordance with applicable consent requirements.
+
+---
+
+# 44. TURNSTILE AND BOT PROTECTION
+
+Where enabled, Cloudflare Turnstile or similar technology may process limited device/network information to protect forms and Accounts from automated abuse.
+
+---
+
+# 45. CHILDREN
+
+The Platform is intended for adults.
+
+Transactional users should normally be at least 18.
+
+We do not knowingly design the Platform to collect children's data for Property transactions.
+
+---
+
+# 46. DATA BREACHES
+
+We maintain procedures for investigating suspected personal-data breaches.
+
+Where applicable law requires it, we will notify the Nigeria Data Protection Commission and/or affected individuals.
+
+Nigeria's framework includes a 72-hour Commission notification obligation for breaches likely to create relevant risk to individuals.
+
+---
+
+# 47. THIRD-PARTY PROFESSIONALS
+
+Independent solicitors, surveyors or other Professional Providers may act as separate data controllers for information they process in delivering their own professional services.
+
+Their privacy terms may separately apply.
+
+---
+
+# 48. CHANGES TO THIS POLICY
+
+We may update this Privacy Policy as:
+
+* Services change;
+* providers change;
+* laws change;
+* our operational model develops.
+
+Material changes may be communicated through the Platform or by email.
+
+---
+
+# 49. COMPLAINTS
+
+Privacy concerns should first be sent to:
+
+**[support@enuguproperties.com](mailto:support@enuguproperties.com)**
+
+You may also have the right to complain to the **Nigeria Data Protection Commission**.
+
+---
+
+# 50. CONTACT
+
+**Enugu Properties**
+Operated by **MAGENCY ONLINE SOLUTIONS LTD.**
+
+RC Number: **8229228**
+
+House 10
+34V Terraces Estate
+Road No. 2
+Off Orchid Road
+Lekki 106104
+Lagos
+Nigeria
+
+**Privacy / Support:** [support@enuguproperties.com](mailto:support@enuguproperties.com)
+**Diaspora:** [diaspora@enuguproperties.com](mailto:diaspora@enuguproperties.com)
+**WhatsApp:** +234 903 366 0763
+
+## END OF PRIVACY POLICY
+$enugu_privacy_20260914$,'0a4215be210ef7740785b1e96d532156fc905f102cdea335b22088d9e27a5a41',true,true)
+on conflict(kind,version) do update set legal_approved=true,active=true;
+
+update public.agreement_versions set active=false where kind='seller' and active;
+insert into public.agreement_versions(kind,version,content,sha256,legal_approved,active)
+values('seller','2026-09-14',$enugu_seller_20260914$# SELLER TERMS & PROPERTY MARKETING MANDATE
+
+**Effective date: 14 September 2026**
+
+These Seller Terms & Property Marketing Mandate (“**Seller Agreement**”) govern Properties submitted, advertised or marketed through Enugu Properties.
+
+**Enugu Properties** is operated by:
+
+**MAGENCY ONLINE SOLUTIONS LTD.**
+RC Number: **8229228**
+Private Company Limited by Shares
+
+House 10
+34V Terraces Estate
+Road No. 2
+Off Orchid Road
+Lekki 106104
+Lagos
+Nigeria
+
+**Support:** [support@enuguproperties.com](mailto:support@enuguproperties.com)
+**WhatsApp:** +234 903 366 0763
+
+This Seller Agreement should be read with:
+
+* Enugu Properties Terms of Use;
+* Privacy Policy;
+* applicable Listing Plan;
+* the Property-specific Mandate Schedule accepted by the Seller.
+
+---
+
+# PART A — SELLER TERMS
+
+## 1. PURPOSE
+
+This Agreement establishes:
+
+* Seller responsibilities;
+* Property-submission requirements;
+* moderation;
+* verification;
+* inspections;
+* buyer introductions;
+* advertising plans;
+* Property-specific marketing appointments;
+* Success Fee arrangements.
+
+---
+
+# 2. SELLER
+
+“Seller” includes:
+
+* Property Owner;
+* authorised Agent;
+* developer;
+* company;
+* lawful representative.
+
+The Seller's actual capacity must be recorded truthfully.
+
+---
+
+# 3. SELLER AUTHORITY
+
+By submitting a Property, the Seller confirms that they genuinely have authority to advertise it.
+
+Where requested, the Seller must provide reasonable evidence.
+
+---
+
+# 4. AGENTS
+
+An Agent must not submit Property simply because:
+
+* the Agent saw another advertisement;
+* obtained photographs;
+* knows another Agent;
+* heard that Property is available.
+
+We may require direct Owner confirmation or other authority.
+
+---
+
+# 5. AUTHORITY DOES NOT EQUAL TITLE
+
+Confirming authority to market does not itself prove:
+
+* good legal title;
+* ownership free from disputes;
+* document authenticity;
+* absence of encumbrances.
+
+---
+
+# 6. SELLER INFORMATION
+
+The Seller must provide Property information accurately to the best of their knowledge.
+
+This includes:
+
+* location;
+* asking price;
+* dimensions;
+* Property type;
+* features;
+* condition;
+* title/document category;
+* availability.
+
+---
+
+# 7. MATERIAL ISSUES
+
+Where requested, the Seller must not knowingly conceal issues such as:
+
+* ownership disputes;
+* family disputes;
+* litigation;
+* competing sales;
+* mortgages;
+* charges;
+* government acquisition;
+* revocation;
+* boundary disputes;
+* probate issues;
+* joint ownership;
+* existing rights affecting sale.
+
+---
+
+# 8. DOCUMENTS
+
+We may request documents including:
+
+* C of O;
+* Right of Occupancy;
+* Deed of Assignment;
+* Deed of Conveyance;
+* Allocation Letter;
+* Survey Plan;
+* Power of Attorney;
+* probate records;
+* company records;
+* authority to market.
+
+Submission alone does not establish authenticity.
+
+---
+
+# 9. FALSE DOCUMENTS
+
+The Seller must not knowingly submit:
+
+* forged documents;
+* manipulated evidence;
+* false identity information;
+* photographs of unrelated Property.
+
+Serious concerns may result in immediate suspension.
+
+---
+
+# 10. PROPERTY MEDIA
+
+The Seller must have appropriate rights to provide photographs, video and other media.
+
+The Seller gives Enugu Properties permission to process and display that media for legitimate Property-marketing purposes.
+
+---
+
+# 11. ASKING PRICE
+
+The asking price must be authorised by the Owner.
+
+The Seller must promptly notify us of material price changes.
+
+---
+
+# 12. OFFERS
+
+The Seller remains free to accept, reject or negotiate offers unless a separate legally binding agreement provides otherwise.
+
+An offer displayed in the Platform does not itself transfer ownership.
+
+---
+
+# 13. LISTING PLANS
+
+Listings may use:
+
+* Free;
+* Plus;
+* Premium;
+* other future plans.
+
+Plans may differ in duration, media allowances and promotional visibility.
+
+---
+
+# 14. SERVICE AVAILABILITY
+
+Some Platform features may be disabled during Enugu Properties' initial public launch.
+
+A Seller is not entitled to a feature simply because it appears in an old screenshot, development plan or technical description.
+
+The live plan description at the time of purchase or activation controls.
+
+---
+
+# 15. ADVERTISING AND VERIFICATION ARE SEPARATE
+
+Buying Premium or Featured placement does not buy verification.
+
+Verification must arise from the applicable evidence-based process.
+
+---
+
+# 16. MODERATION
+
+Property cannot automatically become public merely because it is submitted or paid for.
+
+Enugu Properties may:
+
+* approve;
+* reject;
+* request changes;
+* request documents;
+* pause;
+* remove
+
+a Listing.
+
+---
+
+# 17. MATERIAL CHANGES
+
+Material changes after approval may require renewed moderation.
+
+This can include:
+
+* Seller;
+* Owner;
+* location;
+* dimensions;
+* title information;
+* survey information;
+* material Property description.
+
+Verification may also need to be repeated.
+
+---
+
+# 18. INSPECTIONS
+
+Where inspection services are available, the Seller agrees to cooperate reasonably with properly arranged visits.
+
+A standard inspection is not automatically a legal title investigation, structural survey or valuation.
+
+---
+
+# 19. BUYER ENQUIRIES
+
+Enugu Properties may receive, qualify and manage buyer enquiries.
+
+The Seller accepts that their direct contact details may not initially be displayed publicly.
+
+---
+
+# 20. COMPLIANCE
+
+We may request additional information for:
+
+* fraud prevention;
+* identity verification;
+* anti-money laundering obligations;
+* legal compliance;
+* transaction investigation.
+
+---
+
+# 21. WITHDRAWAL
+
+The Seller may request withdrawal of the Property.
+
+Withdrawal:
+
+* stops or pauses public advertising;
+* does not erase transaction history;
+* does not automatically refund advertising already supplied;
+* does not automatically extinguish obligations involving a genuine Introduced Buyer.
+
+---
+
+# PART B — PROPERTY MARKETING MANDATE
+
+## 22. APPOINTMENT
+
+By accepting a Property-specific Mandate Schedule, the Seller appoints:
+
+**MAGENCY ONLINE SOLUTIONS LTD., operating Enugu Properties**
+
+to provide the marketing and transaction-support activities identified in this Agreement.
+
+---
+
+# 23. DEFAULT MANDATE TYPE
+
+Unless the Schedule expressly states otherwise, the Mandate is:
+
+## NON-EXCLUSIVE
+
+The Seller may therefore:
+
+* market personally;
+* use another Agent;
+* use another property platform.
+
+However, a Success Fee may remain payable where a qualifying transaction completes with an Introduced Buyer under this Agreement.
+
+---
+
+# 24. EXCLUSIVE MANDATES
+
+An Exclusive Mandate applies only where:
+
+* expressly displayed;
+* specifically accepted;
+* its commercial consequences are clearly disclosed.
+
+A Seller must never be treated as accepting exclusivity through a hidden default.
+
+---
+
+# 25. OUR SERVICES UNDER THE MANDATE
+
+Depending on the arrangement, Enugu Properties may:
+
+* advertise Property;
+* respond to enquiries;
+* introduce prospective Buyers;
+* arrange inspections;
+* coordinate verification;
+* record offers;
+* coordinate searches;
+* support communication;
+* monitor transaction milestones.
+
+---
+
+# 26. NO AUTHORITY TO TRANSFER TITLE
+
+Unless separately authorised by a valid instrument, Enugu Properties cannot:
+
+* sign conveyancing documents for the Seller;
+* transfer title;
+* give possession;
+* receive Property purchase consideration as Seller;
+* make legal representations on Seller's behalf.
+
+---
+
+# 27. SUCCESS FEE
+
+Where the Property Schedule contains a Success Fee, the Seller agrees to pay that fee when the qualifying conditions are met.
+
+The initial standard commercial rate proposed by Enugu Properties is:
+
+## 2% OF THE GROSS SALE PRICE
+
+However:
+
+### Only the fee actually displayed in and accepted through the Property-specific Schedule is binding.
+
+A different transaction may therefore contain:
+
+* another percentage;
+* fixed amount;
+* developer rate;
+* negotiated arrangement.
+
+There is no hidden commission.
+
+---
+
+# 28. GROSS SALE PRICE
+
+Unless the Schedule states otherwise, Gross Sale Price means the genuine total consideration agreed for the Property itself.
+
+It ordinarily excludes:
+
+* government taxes;
+* statutory registration charges;
+* separately identified professional fees.
+
+Artificial arrangements intended to disguise part of the genuine Property consideration may be treated according to their substance.
+
+---
+
+# 29. WHEN SUCCESS FEE IS EARNED
+
+For a standard Non-Exclusive Mandate, the Success Fee is earned where:
+
+1. Enugu Properties has a genuine contractual mandate from the Seller;
+
+2. the Buyer qualifies as an Introduced Buyer;
+
+3. Enugu Properties' introduction or marketing work was an effective part of the chain that resulted in the transaction; and
+
+4. the sale completes.
+
+This structure is intentional. Nigerian Supreme Court authority has emphasised that merely giving someone information about Property, without a proper agency basis or effective causal role, does not automatically create a commission entitlement.
+
+---
+
+# 30. PAYMENT DATE
+
+Unless the Schedule states otherwise, an earned Success Fee becomes payable:
+
+## within 3 Business Days after Completion.
+
+---
+
+# 31. NO FULL SUCCESS FEE FOR AN UNCOMPLETED OFFER
+
+Unless expressly agreed otherwise:
+
+* enquiry;
+* inspection;
+* offer;
+* acceptance
+
+does not itself trigger the standard completion-based Success Fee.
+
+---
+
+# 32. INTRODUCED BUYER
+
+An “Introduced Buyer” means an identifiable Buyer who during the Mandate Period:
+
+* makes a Property-specific enquiry through Enugu Properties;
+* is specifically introduced to the Seller by Enugu Properties;
+* attends an inspection arranged through Enugu Properties;
+* submits an offer through Enugu Properties;
+* receives non-public Property information as part of a genuine purchase enquiry;
+* is otherwise specifically identified to the Seller as a prospective Buyer.
+
+Anonymous website browsing alone does not make someone an Introduced Buyer.
+
+---
+
+# 33. INTRODUCTION RECORDS
+
+We may maintain evidence including:
+
+* enquiry reference;
+* Buyer;
+* Property;
+* inspection;
+* offer;
+* date;
+* communications.
+
+These records may help resolve commission disputes.
+
+---
+
+# 34. PRE-EXISTING BUYERS
+
+The Seller should declare genuine Buyers who were already in active discussions before the Mandate began.
+
+These can be recorded as:
+
+**Pre-Existing Prospects.**
+
+A genuine Pre-Existing Prospect does not automatically become our Introduced Buyer merely by viewing the public Listing.
+
+---
+
+# 35. NOTICE OF PRE-EXISTING RELATIONSHIP
+
+If we identify a Buyer whom the Seller says was already actively negotiating for the Property, the Seller should tell us promptly, preferably within:
+
+## 5 Business Days.
+
+Reasonable evidence may be requested.
+
+---
+
+# 36. DIRECT COMPLETION WITH INTRODUCED BUYER
+
+Where Enugu Properties genuinely introduced the Buyer and the qualifying transaction later completes directly between the Seller and Buyer, the Success Fee may remain payable.
+
+Changing the communication channel does not automatically erase a genuine introduction.
+
+---
+
+# 37. OTHER AGENT
+
+Similarly, using another Agent to conclude negotiations does not necessarily extinguish the Success Fee if:
+
+* Enugu Properties held the valid Seller mandate;
+* we genuinely introduced the Buyer;
+* our introduction remained an effective cause of the completed transaction.
+
+---
+
+# 38. ANTI-CIRCUMVENTION
+
+The Seller must not deliberately attempt to avoid an agreed Success Fee by:
+
+* moving an Introduced Buyer off-platform secretly;
+* pretending the Buyer came from another source;
+* using a nominee solely to conceal the Buyer's identity;
+* postponing Completion purely to evade an applicable fee.
+
+This clause applies only to genuine qualifying introductions.
+
+---
+
+# 39. INDEPENDENT BUYERS
+
+For a Non-Exclusive Mandate, Enugu Properties does **not** claim commission merely because the Property sells.
+
+If the Seller genuinely finds a Buyer independently and Enugu Properties did not introduce or materially cause that Buyer to purchase, the normal Enugu Properties Success Fee is not payable solely because the Listing existed.
+
+---
+
+# 40. TAIL PERIOD
+
+Unless another period is displayed in the Schedule, the standard Tail Period is:
+
+## 180 DAYS
+
+after termination of the Mandate.
+
+The Success Fee may remain payable during the Tail Period if:
+
+* the Buyer was genuinely introduced during the Mandate Period; and
+* the sale to that Buyer later completes.
+
+---
+
+# 41. PURPOSE OF TAIL PERIOD
+
+The Tail Period protects genuine introductions from deliberate delay.
+
+It does not create commission on Buyers we never introduced.
+
+---
+
+# 42. SELLER SALE NOTIFICATION
+
+The Seller must notify Enugu Properties reasonably promptly when:
+
+* an offer is accepted;
+* the transaction reaches formal contract;
+* the Property is sold;
+* the Property is withdrawn;
+* Completion occurs.
+
+---
+
+# 43. COMPLETION INFORMATION
+
+Where commission applies, we may request reasonable evidence of:
+
+* Completion;
+* final sale price;
+* completion date.
+
+We should not demand information unrelated to establishing the fee.
+
+---
+
+# 44. INSTALMENT SALES
+
+Where Property is sold by instalments, the parties may agree how the Success Fee is paid.
+
+Unless expressly varied, commission calculation remains based on the agreed Gross Sale Price.
+
+---
+
+# 45. SELLER'S SOLICITOR
+
+The Seller remains free to engage an independent solicitor.
+
+Where authorised, the solicitor may confirm Completion details or settle an agreed fee from completion proceeds.
+
+Such authority must not be assumed.
+
+---
+
+# 46. THIRD-PARTY PROFESSIONAL FEES
+
+Costs for:
+
+* solicitor;
+* survey;
+* valuation;
+* official search;
+* inspection;
+* photography
+
+may be separate from Enugu Properties' Success Fee.
+
+Separate charges must be disclosed before commitment.
+
+---
+
+# 47. DUPLICATE AGENT CLAIMS
+
+If another Agent claims the same Buyer introduction, the Seller should notify us.
+
+Relevant evidence may include:
+
+* dates;
+* communications;
+* inspection history;
+* previous negotiations.
+
+We will not knowingly claim commission merely because another Agent also makes a demand.
+
+---
+
+# 48. CONFLICTS
+
+Enugu Properties should disclose a material conflict of interest that becomes known to us.
+
+We must not secretly act for both sides on conflicting commission arrangements.
+
+A Buyer may separately purchase a clearly disclosed service without automatically making Enugu Properties the Buyer's acquisition agent.
+
+---
+
+# 49. TERMINATION
+
+Either party may terminate a Non-Exclusive Mandate using the Platform or written/electronic notice unless a specifically agreed term lawfully provides otherwise.
+
+Termination does not affect:
+
+* accrued advertising fees;
+* qualifying transactions already completed;
+* Tail Period;
+* fraud claims;
+* records reasonably required for legal or operational purposes.
+
+---
+
+# 50. LISTING EXPIRY
+
+Expiry of an advertising plan does not automatically terminate a separate Marketing Mandate unless the Property Schedule states that both periods are the same.
+
+---
+
+# 51. CONFIDENTIALITY
+
+We will take reasonable steps to protect private Seller and Property information.
+
+The Seller authorises us to disclose information reasonably necessary to legitimate:
+
+* Buyers;
+* staff;
+* inspectors;
+* Professional Providers.
+
+---
+
+# 52. PERSONAL DATA
+
+Seller information is processed under the Enugu Properties Privacy Policy.
+
+---
+
+# 53. FRAUD
+
+We may pause or terminate activity where we reasonably suspect:
+
+* forged documents;
+* identity misuse;
+* unauthorised sale;
+* fraud;
+* money laundering.
+
+---
+
+# 54. LIMITATION OF LIABILITY
+
+Nothing in this Agreement excludes liability that applicable law does not permit us to exclude.
+
+Subject to mandatory law, we do not guarantee:
+
+* sale;
+* Property value;
+* buyer performance;
+* transaction completion;
+* uninterrupted Platform availability.
+
+---
+
+# 55. SELLER RESPONSIBILITY FOR DELIBERATE MISCONDUCT
+
+To the extent permitted by law, a business Seller may be responsible for reasonable direct loss caused by the Seller's deliberate:
+
+* fraud;
+* forged documentation;
+* unauthorised marketing;
+* copyright infringement;
+* circumvention of an agreed qualifying Success Fee.
+
+This clause does not remove mandatory consumer protections.
+
+---
+
+# 56. COMMISSION DISPUTES
+
+When a dispute arises, relevant evidence should include:
+
+* accepted Mandate version;
+* commission rate;
+* Buyer identity;
+* introduction history;
+* transaction timeline;
+* Completion;
+* Tail Period.
+
+The parties should first attempt good-faith resolution.
+
+---
+
+# 57. GOVERNING LAW
+
+This Seller Agreement is governed by Nigerian law and relevant Property laws applicable where the Property is located.
+
+Nothing in this Agreement itself transfers land.
+
+---
+
+# 58. ELECTRONIC ACCEPTANCE
+
+The Mandate may be accepted electronically.
+
+The system may preserve:
+
+* Seller Account;
+* Property;
+* Agreement version;
+* commission;
+* Mandate type;
+* timestamp;
+* technical acceptance evidence where lawful.
+
+---
+
+# 59. HISTORICAL VERSION
+
+The exact Mandate accepted by the Seller must be preserved.
+
+Future changes must not silently rewrite an earlier accepted Property-specific commercial agreement.
+
+---
+
+# PART C — PROPERTY-SPECIFIC MANDATE SCHEDULE
+
+## ENUGU PROPERTIES
+
+**Brand:** Enugu Properties
+**Operator:** MAGENCY ONLINE SOLUTIONS LTD.
+**RC:** 8229228
+
+---
+
+## SELLER
+
+**Seller Name:** [System populated]
+
+**Seller Reference:** [System populated]
+
+**Seller Type:**
+
+[ ] Property Owner
+[ ] Authorised Agent
+[ ] Developer / Company
+[ ] Joint / Family Representative
+[ ] Other
+
+**Organisation:** [If applicable]
+
+---
+
+## PROPERTY
+
+**Property Reference:** [EP-YYYY-XXXXXX]
+
+**Property:** [System populated]
+
+**Location:** [System populated]
+
+**Asking Price:** ₦[System populated]
+
+---
+
+## SELLER CAPACITY
+
+[ ] I am the Owner.
+
+[ ] I am authorised by the Owner.
+
+[ ] I represent the company/developer.
+
+[ ] Joint/family Property circumstances have been disclosed.
+
+[ ] Other.
+
+---
+
+## MANDATE TYPE
+
+Default:
+
+### [✓] NON-EXCLUSIVE
+
+Alternative only where specifically accepted:
+
+### [ ] EXCLUSIVE
+
+---
+
+## MANDATE PERIOD
+
+**Start:** [Date]
+
+**End:** [Date]
+
+or:
+
+[ ] Continues until terminated under the Agreement.
+
+---
+
+## SUCCESS FEE
+
+**Type:**
+
+[ ] Percentage
+[ ] Fixed Fee
+[ ] Negotiated Arrangement
+
+**Agreed Percentage:**
+
+## [2.00]%
+
+of Gross Sale Price
+
+OR:
+
+**Agreed Fixed Amount:** ₦[ ]
+
+The Seller confirms that this fee was clearly displayed before acceptance.
+
+---
+
+## PAYMENT TRIGGER
+
+Default:
+
+> A qualifying Success Fee becomes payable when a transaction with a qualifying Introduced Buyer completes.
+
+**Payment Due:** 3 Business Days following Completion unless varied below.
+
+**Variation:** [If any]
+
+---
+
+## TAIL PERIOD
+
+Default:
+
+## 180 DAYS
+
+Alternative agreed period:
+
+[ ]
+
+---
+
+## PRE-EXISTING PROSPECTS
+
+[ ] No Pre-Existing Prospects declared.
+
+or:
+
+**Prospect:** [ ]
+
+**Evidence / Date of prior discussions:** [ ]
+
+---
+
+## ADVERTISING PLAN
+
+[ ] Free
+[ ] Plus
+[ ] Premium
+[ ] Other
+
+**Price:** ₦[ ]
+
+**Duration:** [ ]
+
+Advertising fees are separate from Success Fee unless expressly stated otherwise.
+
+---
+
+## ADDITIONAL SERVICES
+
+[ ] Physical Inspection
+[ ] Photography
+[ ] Video — where available
+[ ] Document Review
+[ ] Official Search Coordination
+[ ] Survey Review Coordination
+[ ] Legal Due Diligence Coordination
+[ ] Diaspora Support
+[ ] Other
+
+Only Services currently enabled by Enugu Properties may be selected.
+
+---
+
+# SELLER DECLARATION
+
+By accepting this Mandate, I confirm that:
+
+1. I have read this Seller Agreement.
+
+2. Information supplied by me is accurate to the best of my knowledge.
+
+3. I am the Owner or genuinely authorised to market the Property.
+
+4. Enugu Properties may request supporting evidence.
+
+5. Advertising payment does not purchase verification.
+
+6. Publication does not guarantee legal title.
+
+7. I have seen the exact applicable Success Fee before accepting.
+
+8. I understand the definition of Introduced Buyer.
+
+9. I understand the Tail Period.
+
+10. I will notify Enugu Properties if the Property sells or is withdrawn.
+
+11. I agree to electronic acceptance and record keeping.
+
+---
+
+## ACCEPTANCE RECORD
+
+**Seller:** [System]
+
+**Property:** [System]
+
+**Agreement Version:** [System]
+
+**Mandate Type:** [System snapshot]
+
+**Commission:** [System snapshot]
+
+**Tail Period:** [System snapshot]
+
+**Accepted At:** [Timestamp]
+
+**Acceptance Method:** [System]
+
+**Agreement Snapshot Reference:** [System]
+
+## END OF SELLER TERMS & PROPERTY MARKETING MANDATE
+$enugu_seller_20260914$,'8d3e1e0e15c807126884d0b55e9114f44fcb91fa99a2203f021e231492c66747',true,true)
+on conflict(kind,version) do update set legal_approved=true,active=true;

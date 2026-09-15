@@ -300,6 +300,11 @@ export default async function Admin({
                     {row.stage.replaceAll("_", " ")}
                   </span>
                 )}
+                {row.beta_participant && (
+                  <span className="status">
+                    beta · {row.beta_kind?.replaceAll("_", " ")}
+                  </span>
+                )}
                 <span>
                   {new Date(row.created_at).toLocaleString("en-GB", {
                     timeZone: "Africa/Lagos",
@@ -463,30 +468,71 @@ export default async function Admin({
                 </ActionForm>
               )}
               {tab === "accounts" && (
-                <ActionForm
-                  action="account-status"
-                  extra={{ id: row.id }}
-                  label="Update account status"
-                >
-                  <label>
-                    Status
-                    <select name="status">
-                      {[
-                        "active",
-                        "restricted",
-                        "suspended",
-                        "banned",
-                        "closed",
-                      ].map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Internal reason
-                    <textarea name="reason" minLength={10} required />
-                  </label>
-                </ActionForm>
+                <>
+                  <ActionForm
+                    action="account-status"
+                    extra={{ id: row.id }}
+                    label="Update account status"
+                  >
+                    <label>
+                      Status
+                      <select name="status">
+                        {[
+                          "active",
+                          "restricted",
+                          "suspended",
+                          "banned",
+                          "closed",
+                        ].map((s) => (
+                          <option key={s}>{s}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Internal reason
+                      <textarea name="reason" minLength={10} required />
+                    </label>
+                  </ActionForm>
+                  <ActionForm
+                    action="beta-participant"
+                    extra={{ id: row.id }}
+                    label="Update beta participation"
+                  >
+                    <label>
+                      Beta access
+                      <select
+                        name="enabled"
+                        defaultValue={String(row.beta_participant)}
+                      >
+                        <option value="true">Beta participant</option>
+                        <option value="false">Not a beta participant</option>
+                      </select>
+                    </label>
+                    <label>
+                      Participant type
+                      <select
+                        name="kind"
+                        defaultValue={row.beta_kind || "beta_customer"}
+                      >
+                        <option value="beta_customer">
+                          Real beta customer
+                        </option>
+                        <option value="test_seller">Test seller</option>
+                        <option value="test_buyer">Test buyer</option>
+                        <option value="staff_qa">Staff QA account</option>
+                      </select>
+                    </label>
+                    <label>
+                      Internal reason
+                      <textarea
+                        name="reason"
+                        minLength={10}
+                        maxLength={500}
+                        required
+                      />
+                    </label>
+                  </ActionForm>
+                </>
               )}
               {tab === "audit" && (
                 <pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
@@ -562,6 +608,7 @@ async function PropertyReview({
     { data: documents },
     { data: checks },
     { data: providers },
+    { data: verificationTypes },
     { data: audits },
     { data: risks },
   ] = await Promise.all([
@@ -574,13 +621,14 @@ async function PropertyReview({
     c.from("property_private").select("*").eq("property_id", id).maybeSingle(),
     c
       .from("property_documents")
-      .select("id,original_name,type_id")
+      .select("id,original_name,type_id,scan_status")
       .eq("property_id", id),
     c.from("property_verifications").select("*").eq("property_id", id),
     c
       .from("professional_providers")
       .select("id,name,profession")
       .eq("credentials_confirmed", true),
+    c.from("verification_types").select("id,name,availability").order("name"),
     c
       .from("audit_logs")
       .select("id,action,created_at")
@@ -665,13 +713,19 @@ async function PropertyReview({
               <div className="record" key={d.id}>
                 <h3>{d.original_name}</h3>
                 <p className="form-caption">
-                  {d.type_id} · {d.id}
+                  {d.type_id} · {d.scan_status.replaceAll("_", " ")} · {d.id}
                 </p>
-                <ActionForm
-                  action="document-link"
-                  extra={{ id: d.id }}
-                  label="Download authorised copy"
-                />
+                {d.scan_status === "clean" ? (
+                  <ActionForm
+                    action="document-link"
+                    extra={{ id: d.id }}
+                    label="Download authorised copy"
+                  />
+                ) : (
+                  <p className="notice">
+                    Download locked until security review is complete.
+                  </p>
+                )}
               </div>
             ))
           ) : (
@@ -720,16 +774,16 @@ async function PropertyReview({
                 <label>
                   Check
                   <select name="type_id">
-                    {[
-                      "identity",
-                      "authority",
-                      "site",
-                      "documents",
-                      "official_search",
-                      "survey",
-                      "legal",
-                    ].map((t) => (
-                      <option key={t}>{t}</option>
+                    {verificationTypes?.map((type) => (
+                      <option
+                        key={type.id}
+                        value={type.id}
+                        disabled={["coming_soon", "disabled"].includes(
+                          type.availability,
+                        )}
+                      >
+                        {type.name} · {type.availability.replaceAll("_", " ")}
+                      </option>
                     ))}
                   </select>
                 </label>

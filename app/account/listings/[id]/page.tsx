@@ -7,6 +7,7 @@ import { money } from "@/lib/domain";
 import { ActionForm } from "@/components/action-form";
 import { UploadForm } from "@/components/upload-form";
 import { VideoUpload } from "@/components/video-upload";
+import { features } from "@/lib/business";
 export default async function Listing({
   params,
 }: {
@@ -111,7 +112,9 @@ export default async function Listing({
           {["draft", "needs_changes"].includes(p.status) && (
             <>
               <UploadForm property={id} kind="image" />
-              {p.plan_id !== "free" && <VideoUpload property={id} />}
+              {features.video && p.plan_id !== "free" && (
+                <VideoUpload property={id} />
+              )}
             </>
           )}
         </section>
@@ -141,12 +144,18 @@ export default async function Listing({
         </section>
         <section className="panel">
           <h2 style={{ fontSize: 24 }}>4. Payment and submission</h2>
-          {p.plan_id !== "free" && (
+          {p.plan_id !== "free" && features.paidListings && (
             <ActionForm
               action="checkout"
               extra={{ id }}
               label="Open secure advertising checkout"
             />
+          )}
+          {p.plan_id !== "free" && !features.paidListings && (
+            <div className="notice">
+              Paid advertising plans are launching shortly. Select the Free
+              plan or contact our property team for early access.
+            </div>
           )}
           {agreement.data ? (
             <>

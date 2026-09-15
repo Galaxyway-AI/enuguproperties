@@ -10,12 +10,20 @@ declare global {
           sitekey: string;
           callback: (token: string) => void;
           "expired-callback": () => void;
+          "error-callback": () => void;
+          action: string;
         },
       ) => string;
     };
   }
 }
-export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
+export function Turnstile({
+  onToken,
+  action,
+}: {
+  onToken: (token: string) => void;
+  action: string;
+}) {
   const target = useRef<HTMLDivElement>(null);
   const rendered = useRef(false);
   const key = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -26,6 +34,8 @@ export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
         sitekey: key!,
         callback: onToken,
         "expired-callback": () => onToken(""),
+        "error-callback": () => onToken(""),
+        action,
       });
       rendered.current = true;
     }
@@ -36,7 +46,7 @@ export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         onReady={render}
       />
-      <div ref={target} />
+      <div ref={target} data-turnstile-action={action} />
     </>
   );
 }

@@ -15,6 +15,7 @@ import { getAreas, getProperties, isDemo } from "@/lib/catalogue";
 import { heroImage } from "@/lib/demo";
 import { SearchForm } from "@/components/search";
 import { PropertyCard } from "@/components/property-card";
+import { business } from "@/lib/business";
 export default async function Home() {
   const [areas, { properties }] = await Promise.all([
     getAreas(),
@@ -28,8 +29,11 @@ export default async function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Organization",
-            name: "Enugu Properties",
-            legalName: "MAGENCY ONLINE SOLUTIONS LTD",
+            name: business.brandName,
+            legalName: business.legalName,
+            taxID: business.rcNumber,
+            email: business.supportEmail,
+            telephone: business.whatsappE164,
             url:
               process.env.NEXT_PUBLIC_APP_URL || "https://enuguproperties.com",
           }).replace(/</g, "\\u003c"),

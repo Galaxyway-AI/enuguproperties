@@ -94,7 +94,7 @@ export function AuthForm({
           are accepted separately before listing submission.
         </p>
       )}
-      <Turnstile onToken={setToken} />
+      <Turnstile onToken={setToken} action={mode} />
       {error && (
         <div className="notice error" role="alert">
           {error}

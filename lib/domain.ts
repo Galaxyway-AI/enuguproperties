@@ -32,6 +32,15 @@ export type PublicProperty = {
   price_minor: number;
   bedrooms: number | null;
   bathrooms: number | null;
+  property_type?: string;
+  negotiable?: boolean;
+  toilets?: number | null;
+  living_rooms?: number | null;
+  parking_spaces?: number | null;
+  building_sqm?: number | null;
+  property_condition?: string;
+  furnishing?: string;
+  details?: Record<string, string | number | boolean>;
   land_sqm: number;
   features: string[];
   images: string[];

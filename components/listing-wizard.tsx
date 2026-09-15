@@ -11,6 +11,15 @@ type Draft = {
   land_sqm?: number;
   bedrooms?: number;
   bathrooms?: number;
+  property_type?: string;
+  negotiable?: boolean;
+  toilets?: number;
+  living_rooms?: number;
+  parking_spaces?: number;
+  building_sqm?: number;
+  property_condition?: string;
+  furnishing?: string;
+  details?: Record<string, string | number | boolean>;
   title_type?: string;
   features?: string[];
   status?: string;
@@ -26,6 +35,7 @@ export function ListingWizard({
 }) {
   const [id, setId] = useState(initial.id || "");
   const [step, setStep] = useState(0);
+  const [category, setCategory] = useState(initial.category || "houses");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -128,7 +138,8 @@ export function ListingWizard({
               Property category
               <select
                 name="category"
-                defaultValue={initial.category || "houses"}
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
               >
                 <option value="houses">House</option>
                 <option value="land">Land</option>
@@ -195,6 +206,59 @@ export function ListingWizard({
         >
           <div className="form-grid">
             <label>
+              Property type
+              <select
+                name="property_type"
+                defaultValue={initial.property_type || ""}
+                required
+              >
+                <option value="" disabled>
+                  Choose a type
+                </option>
+                {category === "houses" && (
+                  <>
+                    <option value="detached-house">Detached house</option>
+                    <option value="semi-detached-house">
+                      Semi-detached house
+                    </option>
+                    <option value="terraced-house">Terraced house</option>
+                    <option value="flat">Flat / apartment</option>
+                    <option value="bungalow">Bungalow</option>
+                  </>
+                )}
+                {category === "land" && (
+                  <>
+                    <option value="residential-land">Residential land</option>
+                    <option value="commercial-land">Commercial land</option>
+                    <option value="mixed-use-land">Mixed-use land</option>
+                    <option value="agricultural-land">Agricultural land</option>
+                  </>
+                )}
+                {category === "commercial" && (
+                  <>
+                    <option value="office">Office</option>
+                    <option value="retail">Shop / retail</option>
+                    <option value="warehouse">Warehouse</option>
+                    <option value="hospitality">Hotel / hospitality</option>
+                    <option value="industrial">Industrial property</option>
+                  </>
+                )}
+                {category === "new-developments" && (
+                  <>
+                    <option value="residential-development">
+                      Residential development
+                    </option>
+                    <option value="mixed-use-development">
+                      Mixed-use development
+                    </option>
+                    <option value="commercial-development">
+                      Commercial development
+                    </option>
+                  </>
+                )}
+              </select>
+            </label>
+            <label>
               Asking price (₦)
               <input
                 name="price"
@@ -236,6 +300,176 @@ export function ListingWizard({
                 max="100"
                 defaultValue={initial.bathrooms}
               />
+            </label>
+            {category !== "land" && (
+              <>
+                <label>
+                  Toilets
+                  <input
+                    name="toilets"
+                    type="number"
+                    min="0"
+                    max="100"
+                    defaultValue={initial.toilets}
+                  />
+                </label>
+                <label>
+                  Living rooms
+                  <input
+                    name="living_rooms"
+                    type="number"
+                    min="0"
+                    max="50"
+                    defaultValue={initial.living_rooms}
+                  />
+                </label>
+                <label>
+                  Parking spaces
+                  <input
+                    name="parking_spaces"
+                    type="number"
+                    min="0"
+                    max="200"
+                    defaultValue={initial.parking_spaces}
+                  />
+                </label>
+                <label>
+                  Building size (m²)
+                  <input
+                    name="building_sqm"
+                    type="number"
+                    step="any"
+                    min="1"
+                    defaultValue={initial.building_sqm}
+                  />
+                </label>
+                <label>
+                  Property condition
+                  <select
+                    name="property_condition"
+                    defaultValue={initial.property_condition || ""}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="new">New</option>
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="renovation-required">
+                      Renovation required
+                    </option>
+                    <option value="under-construction">
+                      Under construction
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  Furnishing
+                  <select
+                    name="furnishing"
+                    defaultValue={initial.furnishing || ""}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="unfurnished">Unfurnished</option>
+                    <option value="part-furnished">Part furnished</option>
+                    <option value="furnished">Furnished</option>
+                  </select>
+                </label>
+                <label>
+                  Floors
+                  <input
+                    name="floors"
+                    type="number"
+                    min="1"
+                    max="100"
+                    defaultValue={initial.details?.floors as number | undefined}
+                  />
+                </label>
+                <label>
+                  Year built (if known)
+                  <input
+                    name="year_built"
+                    type="number"
+                    min="1900"
+                    max={new Date().getFullYear() + 10}
+                    defaultValue={
+                      initial.details?.year_built as number | undefined
+                    }
+                  />
+                </label>
+              </>
+            )}
+            {category === "land" && (
+              <>
+                <label>
+                  Intended use
+                  <select
+                    name="intended_use"
+                    defaultValue={String(initial.details?.intended_use || "")}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="residential">Residential</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="mixed-use">Mixed use</option>
+                    <option value="agricultural">Agricultural</option>
+                  </select>
+                </label>
+                <label>
+                  Topography
+                  <select
+                    name="topography"
+                    defaultValue={String(initial.details?.topography || "")}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="level">Level</option>
+                    <option value="sloping">Sloping</option>
+                    <option value="undulating">Undulating</option>
+                  </select>
+                </label>
+                <label>
+                  Boundary
+                  <select
+                    name="fenced"
+                    defaultValue={String(initial.details?.fenced ?? "")}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="true">Fenced</option>
+                    <option value="false">Unfenced</option>
+                  </select>
+                </label>
+                <label>
+                  Development status
+                  <select
+                    name="development_status"
+                    defaultValue={String(
+                      initial.details?.development_status || "",
+                    )}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="undeveloped">Undeveloped</option>
+                    <option value="partly-developed">Partly developed</option>
+                    <option value="serviced">Serviced plot</option>
+                  </select>
+                </label>
+              </>
+            )}
+            <label>
+              Road access
+              <select
+                name="road_access"
+                defaultValue={String(initial.details?.road_access || "")}
+              >
+                <option value="">Not specified</option>
+                <option value="paved">Paved road</option>
+                <option value="unpaved">Unpaved road</option>
+                <option value="limited">Limited access</option>
+              </select>
+            </label>
+            <label className="checkbox-label">
+              <input
+                name="negotiable"
+                type="checkbox"
+                defaultChecked={initial.negotiable}
+              />
+              Asking price is negotiable
             </label>
           </div>
           <label>

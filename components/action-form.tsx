@@ -56,7 +56,7 @@ export function ActionForm({
       }}
     >
       {children}
-      {bot && <Turnstile onToken={setToken} />}
+      {bot && <Turnstile onToken={setToken} action={action} />}
       <div aria-live="polite">
         {message && <div className="notice success">{message}</div>}
         {error && (

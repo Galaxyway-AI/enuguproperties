@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
-import { db, serviceDb, configured } from "@/lib/supabase";
+import { db, configured } from "@/lib/supabase";
+import { serverQuery } from "@/lib/server-db";
+import { deleteMedia, putMedia, type MediaArea } from "@/lib/storage";
 import {
   sameOrigin,
   rateLimit,
@@ -11,7 +13,7 @@ import {
 import { z } from "zod";
 export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
-  let orphan: { bucket: string; path: string } | null = null;
+  let orphan: { bucket: MediaArea; path: string } | null = null;
   try {
     sameOrigin(request);
     if (!configured())
@@ -111,13 +113,10 @@ export async function POST(request: NextRequest) {
           .toBuffer(),
       );
     }
-    const service = serviceDb();
-    const bucket = kind === "image" ? "property-media" : "private-evidence";
+    const bucket: MediaArea =
+      kind === "image" ? "property-media" : "private-evidence";
     const path = `${user.id}/${property}/${randomUUID()}.${ext}`;
-    const { error: uploadError } = await service.storage
-      .from(bucket)
-      .upload(path, bytes, { contentType: mime, upsert: false });
-    if (uploadError) throw uploadError;
+    await putMedia(bucket, path, bytes, mime);
     orphan = { bucket, path };
     const common = {
       p_property: property,
@@ -127,26 +126,38 @@ export async function POST(request: NextRequest) {
       p_mime: mime,
       p_hash: createHash("sha256").update(bytes).digest("hex"),
     };
-    const { data: id, error } = staff
-      ? await service.rpc("attach_staff_evidence", {
-          ...common,
-          p_actor: user.id,
-        })
-      : await service.rpc("attach_upload", {
-          ...common,
-          p_owner: user.id,
-          p_kind: kind,
-          p_bytes: bytes.length,
-        });
-    if (error) throw new HttpError(400, error.message);
+    const rows = staff
+      ? await serverQuery<{ id: string }>(
+          "select public.attach_staff_evidence($1,$2,$3,$4,$5,$6,$7) as id",
+          [property, user.id, path, common.p_type, file.name, mime, common.p_hash],
+        )
+      : await serverQuery<{ id: string }>(
+          "select public.attach_upload($1,$2,$3,$4,$5,$6,$7,$8,$9) as id",
+          [
+            property,
+            user.id,
+            path,
+            kind,
+            common.p_type,
+            file.name,
+            mime,
+            bytes.length,
+            common.p_hash,
+          ],
+        );
+    const id = rows[0]?.id;
+    if (!id) throw new HttpError(400, "The upload could not be recorded.");
     orphan = null;
     return Response.json({
       id,
-      message: `File securely uploaded. Evidence reference: ${id}`,
+      message:
+        kind === "document"
+          ? `Evidence uploaded to quarantine for security review. Reference: ${id}`
+          : `Photograph securely uploaded. Reference: ${id}`,
     });
   } catch (e) {
     if (orphan)
-      await serviceDb().storage.from(orphan.bucket).remove([orphan.path]);
+      await deleteMedia(orphan.bucket, orphan.path);
     return errorResponse(e);
   }
 }

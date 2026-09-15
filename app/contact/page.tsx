@@ -1,4 +1,5 @@
 import { ActionForm } from "@/components/action-form";
+import { business, whatsappUrl } from "@/lib/business";
 export const metadata = { title: "Contact the property team" };
 export default async function Contact({
   searchParams,
@@ -19,6 +20,43 @@ export default async function Contact({
         </div>
       </div>
       <section className="container section">
+        <div className="contact-options">
+          <div className="panel">
+            <h2>General support</h2>
+            <p>
+              Buying, selling, listings, accounts, payments, inspections and
+              verification questions.
+            </p>
+            <a className="text-link" href={`mailto:${business.supportEmail}`}>
+              {business.supportEmail}
+            </a>
+          </div>
+          <div className="panel">
+            <h2>Buying from abroad</h2>
+            <p>
+              Property enquiries, overseas buyer support and remote inspection
+              coordination.
+            </p>
+            <a className="text-link" href={`mailto:${business.diasporaEmail}`}>
+              {business.diasporaEmail}
+            </a>
+          </div>
+          <div className="panel">
+            <h2>WhatsApp</h2>
+            <p>
+              Contact the Nigeria team. Do not send identity documents or
+              banking credentials.
+            </p>
+            <a
+              className="text-link"
+              href={whatsappUrl(
+                "Hello Enugu Properties, I would like assistance with a property enquiry.",
+              )}
+            >
+              {business.whatsappDisplay}
+            </a>
+          </div>
+        </div>
         <div className="prose panel">
           <ActionForm action="contact" label="Send your enquiry" bot>
             <div className="form-grid">
@@ -61,6 +99,23 @@ export default async function Contact({
               private property documents in this message.
             </p>
           </ActionForm>
+        </div>
+        <div className="prose panel registered-address">
+          <h2>Registered Address</h2>
+          <p>
+            <strong>{business.legalName}</strong>
+            <br />
+            {business.registeredAddress.map((line) => (
+              <span key={line}>
+                {line}
+                <br />
+              </span>
+            ))}
+          </p>
+          <p className="form-caption">
+            This is the company’s registered address. Property inspections take
+            place only through a confirmed appointment at the relevant property.
+          </p>
         </div>
       </section>
     </>

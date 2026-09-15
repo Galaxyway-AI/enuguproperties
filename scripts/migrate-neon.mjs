@@ -11,7 +11,7 @@ try {
   await client.query(await readFile("neon/migrations/0001_platform.sql", "utf8"));
   await client.query(await readFile("supabase/seed.sql", "utf8"));
   await client.query("commit");
-  console.log("Neon development schema and seed applied successfully.");
+  console.log("Neon schema and configuration seed applied successfully.");
 } catch (error) {
   await client.query("rollback");
   throw error;

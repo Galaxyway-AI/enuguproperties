@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { db, configured } from "@/lib/supabase";
 import { ActionForm } from "@/components/action-form";
+import { features } from "@/lib/business";
 export default async function Request({
   searchParams,
 }: {
@@ -9,6 +10,7 @@ export default async function Request({
   if (!configured()) return null;
   const { property, kind } = await searchParams;
   if (!["enquire", "inspection", "offer", "report"].includes(kind)) notFound();
+  if (kind === "offer" && !features.offers) notFound();
   const { data: p } = await (
     await db()
   )

@@ -3,6 +3,7 @@ import { Check, ArrowUpRight } from "lucide-react";
 import { getPlans } from "@/lib/catalogue";
 import { configured } from "@/lib/supabase";
 import { money } from "@/lib/domain";
+import { features } from "@/lib/business";
 export const metadata = {
   title: "Advertising plans",
   description:
@@ -29,6 +30,13 @@ export default async function Pricing() {
           <div className="notice">
             Provisional launch pricing. Final plan availability is confirmed
             before checkout.
+          </div>
+        )}
+        {!features.paidListings && (
+          <div className="notice">
+            Paid plans are launching shortly. Contact us for early access. Free
+            listing onboarding is available through our property team during
+            the launch period.
           </div>
         )}
         <div className="price-grid">
@@ -68,9 +76,19 @@ export default async function Pricing() {
               </ul>
               <Link
                 className="button"
-                href={`/account/listings/new?plan=${plan.id}`}
+                href={
+                  plan.id === "free"
+                    ? "/sell"
+                    : features.paidListings
+                      ? `/account/listings/new?plan=${plan.id}`
+                      : "/contact?category=Seller"
+                }
               >
-                Choose {plan.name}
+                {plan.id === "free"
+                  ? "Start a free listing"
+                  : features.paidListings
+                    ? `Choose ${plan.name}`
+                    : "Contact us for early access"}
                 <ArrowUpRight size={17} />
               </Link>
             </article>

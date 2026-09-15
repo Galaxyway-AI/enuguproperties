@@ -14,11 +14,11 @@ export const configured = () =>
   );
 
 async function jwt() {
-  const server = neonAuth() as unknown as {
-    getToken(): Promise<{ data?: { token?: string } }>;
-  };
-  const result = await server.getToken();
-  return result.data?.token ?? null;
+  const server = neonAuth();
+  const sessionToken = await server.token();
+  if (sessionToken.data?.token) return sessionToken.data.token;
+  const anonymousToken = await server.getAnonymousToken();
+  return anonymousToken.data?.token ?? null;
 }
 
 function dataClient() {
@@ -54,10 +54,6 @@ export async function db(): Promise<SupabaseClient> {
   return Object.assign(dataClient(), {
     auth: authCompatibility(),
   }) as unknown as SupabaseClient;
-}
-export function serviceDb(): SupabaseClient {
-  if (!configured()) throw new Error("Server integration is not configured.");
-  return dataClient() as unknown as SupabaseClient;
 }
 export async function currentUser() {
   if (!authConfigured()) return null;

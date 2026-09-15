@@ -2,49 +2,104 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "enugu-properties",
   "compatibility_date": "2026-09-14",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "main": "vinext/server/fetch-handler",
   "assets": {
     "directory": "dist/client",
     "not_found_handling": "none",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
   },
   "cache": {
-    "enabled": true
+    "enabled": true,
   },
   "version_metadata": {
-    "binding": "CF_VERSION_METADATA"
+    "binding": "CF_VERSION_METADATA",
   },
   "vars": {
     "NEXT_PUBLIC_APP_URL": "https://enugu-properties.emailgalaxyway.workers.dev",
     "NEON_AUTH_BASE_URL": "https://ep-crimson-block-za1a50ot.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
     "NEXT_PUBLIC_NEON_AUTH_URL": "https://ep-crimson-block-za1a50ot.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
+    "NEON_DATA_API_URL": "https://ep-crimson-block-za1a50ot.apirest.c-2.eu-west-2.aws.neon.tech/neondb/rest/v1",
     "DEMO_MODE": "true",
-    "PREVIEW_MODE": "true"
+    "PREVIEW_MODE": "true",
+    "PAYSTACK_MODE": "test",
+    "BETA_MODE": "true",
+    "FEATURE_OFFERS": "true",
+    "FEATURE_TRANSACTION_CASES": "true",
+    "FEATURE_TRANSACTION_DOCUMENTS": "false",
+    "FEATURE_LEGAL_DUE_DILIGENCE": "false",
+    "FEATURE_SURVEY_REVIEW": "false",
+    "FEATURE_MAPS": "false",
+    "FEATURE_VIDEO": "false",
+    "UK_DIASPORA_CONTACT_ENABLED": "false",
+    "SUPPORT_EMAIL": "support@enuguproperties.com",
+    "DIASPORA_EMAIL": "diaspora@enuguproperties.com",
+    "WHATSAPP_NUMBER": "+2349033660763",
+    "COMPANY_REGISTRATION_NUMBER": "8229228",
   },
   "r2_buckets": [
     {
       "binding": "MEDIA",
-      "bucket_name": "enugu-properties-media-dev"
-    }
+      "bucket_name": "enugu-properties-media-dev",
+    },
+    {
+      "binding": "PRIVATE_MEDIA",
+      "bucket_name": "enugu-properties-private-dev",
+    },
   ],
   "env": {
     "production": {
+      "routes": [
+        {
+          "pattern": "enuguproperties.com",
+          "custom_domain": true,
+        },
+        {
+          "pattern": "www.enuguproperties.com",
+          "custom_domain": true,
+        },
+      ],
+      "version_metadata": {
+        "binding": "CF_VERSION_METADATA",
+      },
       "vars": {
         "NEXT_PUBLIC_APP_URL": "https://enuguproperties.com",
         "NEON_AUTH_BASE_URL": "https://ep-holy-sound-zaigrb4x.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
         "NEXT_PUBLIC_NEON_AUTH_URL": "https://ep-holy-sound-zaigrb4x.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
+        "NEON_DATA_API_URL": "https://ep-holy-sound-zaigrb4x.apirest.c-2.eu-west-2.aws.neon.tech/neondb/rest/v1",
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAE0Ws5O3_ZiGwn8C",
         "DEMO_MODE": "false",
-        "PREVIEW_MODE": "false"
+        "PREVIEW_MODE": "false",
+        "BETA_MODE": "false",
+        "PAYSTACK_MODE": "test",
+        "FEATURE_REGISTRATION": "false",
+        "FEATURE_PAID_LISTINGS": "false",
+        "FEATURE_PROPERTY_PURCHASE_PAYMENTS": "false",
+        "FEATURE_ESCROW": "false",
+        "FEATURE_OFFERS": "false",
+        "FEATURE_TRANSACTION_CASES": "false",
+        "FEATURE_TRANSACTION_DOCUMENTS": "false",
+        "FEATURE_LEGAL_DUE_DILIGENCE": "false",
+        "FEATURE_SURVEY_REVIEW": "false",
+        "FEATURE_MAPS": "false",
+        "FEATURE_VIDEO": "false",
+        "UK_DIASPORA_CONTACT_ENABLED": "false",
+        "SUPPORT_EMAIL": "support@enuguproperties.com",
+        "EMAIL_FROM": "Enugu Properties <support@enuguproperties.com>",
+        "DIASPORA_EMAIL": "diaspora@enuguproperties.com",
+        "WHATSAPP_NUMBER": "+2349033660763",
+        "COMPANY_REGISTRATION_NUMBER": "8229228",
       },
       "r2_buckets": [
         {
           "binding": "MEDIA",
-          "bucket_name": "enugu-properties-media"
-        }
-      ]
-    }
-  }
+          "bucket_name": "enugu-properties-media",
+        },
+        {
+          "binding": "PRIVATE_MEDIA",
+          "bucket_name": "enugu-properties-private",
+        },
+      ],
+    },
+  },
 }

@@ -1,0 +1,3 @@
+# Site inspection SOP
+
+Confirm the property reference, appointment, inspector identity and permission to capture evidence. Record date/time, the representative present and permitted internal GPS. Photograph the approach/access road, identifiable exterior, authorised key interior areas, visible condition and practical boundaries. Record utilities, access, discrepancies and safety concerns without making title, structural or legal conclusions. Upload evidence only through the private workflow. The assigned inspector completes the record; an independent authorised reviewer decides whether the public “Site inspected” status is supported.

@@ -935,6 +935,21 @@ textarea {
 .prose li {
   margin-bottom: 10px;
 }
+.legal-page {
+  max-width: 900px;
+}
+.legal-document h2 {
+  margin-top: 2.8rem;
+}
+.legal-document h3,
+.legal-document h4 {
+  margin-top: 2rem;
+}
+.legal-document blockquote {
+  border-left: 3px solid var(--gold);
+  margin: 1.5rem 0;
+  padding-left: 1.25rem;
+}
 .notice {
   background: #f5f2e6;
   border: 1px solid #e4dfc9;
@@ -1074,6 +1089,45 @@ textarea {
 }
 .detail-sidebar p {
   font-size: 14px;
+}
+
+.property-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+
+.property-details div {
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.property-details dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.property-details dd {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+.contact-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.contact-options h2 {
+  font-size: 1.15rem;
+}
+.registered-address {
+  margin-top: 20px;
 }
 .trust-list {
   padding: 0;
@@ -1741,6 +1795,12 @@ textarea {
   }
   .spec-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .property-details {
+    grid-template-columns: 1fr;
+  }
+  .contact-options {
+    grid-template-columns: 1fr;
   }
   .dashboard {
     grid-template-columns: 1fr;

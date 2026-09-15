@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { validWebhook, paystack } from "@/lib/payments";
-import { serviceDb } from "@/lib/supabase";
+import { serverQuery } from "@/lib/server-db";
 export async function POST(request: NextRequest) {
   try {
     if (Number(request.headers.get("content-length") || 0) > 1000000)
@@ -19,13 +19,12 @@ export async function POST(request: NextRequest) {
       verified.reference !== event.data.reference
     )
       return new Response("Not confirmed", { status: 400 });
-    const { error } = await serviceDb().rpc("fulfil_payment", {
-      p_reference: verified.reference,
-      p_provider: verified.id,
-      p_amount: verified.amount,
-      p_currency: verified.currency,
-    });
-    if (error) throw error;
+    await serverQuery("select public.fulfil_payment($1,$2,$3,$4)", [
+      verified.reference,
+      verified.id,
+      verified.amount,
+      verified.currency,
+    ]);
     return new Response("OK");
   } catch {
     console.error(

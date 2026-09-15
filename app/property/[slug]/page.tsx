@@ -5,6 +5,7 @@ import { MapPin, ShieldCheck, ArrowUpRight } from "lucide-react";
 import { getProperty } from "@/lib/catalogue";
 import { money, verificationLabels } from "@/lib/domain";
 import { Gallery } from "@/components/gallery";
+import { features, whatsappUrl } from "@/lib/business";
 export async function generateMetadata({
   params,
 }: {
@@ -25,6 +26,36 @@ export default async function Property({
 }) {
   const p = await getProperty((await params).slug);
   if (!p) notFound();
+  const label = (value: string) =>
+    value
+      .replaceAll("-", " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const extraDetails = [
+    p.property_type && ["Property type", label(p.property_type)],
+    p.building_sqm && [
+      "Building size",
+      `${p.building_sqm.toLocaleString()} m²`,
+    ],
+    p.toilets !== null &&
+      p.toilets !== undefined && ["Toilets", String(p.toilets)],
+    p.living_rooms !== null &&
+      p.living_rooms !== undefined && ["Living rooms", String(p.living_rooms)],
+    p.parking_spaces !== null &&
+      p.parking_spaces !== undefined && [
+        "Parking spaces",
+        String(p.parking_spaces),
+      ],
+    p.property_condition && ["Condition", label(p.property_condition)],
+    p.furnishing && ["Furnishing", label(p.furnishing)],
+    ...Object.entries(p.details || {}).map(([key, value]) => [
+      label(key),
+      typeof value === "boolean"
+        ? value
+          ? "Yes"
+          : "No"
+        : label(String(value)),
+    ]),
+  ].filter(Boolean) as string[][];
   return (
     <section className="container section">
       <div className="breadcrumb">
@@ -86,6 +117,19 @@ export default async function Property({
           <div className="prose">
             <h2>About this property</h2>
             <p style={{ whiteSpace: "pre-line" }}>{p.description}</p>
+            {extraDetails.length > 0 && (
+              <>
+                <h2>Property details</h2>
+                <dl className="property-details">
+                  {extraDetails.map(([name, value]) => (
+                    <div key={name}>
+                      <dt>{name}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
             {p.videos?.map((v) => (
               <video
                 key={v}
@@ -162,6 +206,7 @@ export default async function Property({
         <aside className="panel detail-sidebar">
           <span className="eyebrow">ASKING PRICE</span>
           <div className="detail-price">{money(p.price_minor)}</div>
+          {p.negotiable && <p className="form-caption">Price is negotiable</p>}
           <p>Listed by a property {p.seller_type}</p>
           <hr
             style={{
@@ -189,12 +234,22 @@ export default async function Property({
               >
                 Ask about this property
               </Link>
-              <Link
+              <a
                 className="button secondary"
-                href={`/account/request?property=${p.id}&kind=offer`}
+                href={whatsappUrl(
+                  `Hello Enugu Properties, I am interested in property ${p.reference}.`,
+                )}
               >
-                Make an offer
-              </Link>
+                Ask on WhatsApp
+              </a>
+              {features.offers && (
+                <Link
+                  className="button secondary"
+                  href={`/account/request?property=${p.id}&kind=offer`}
+                >
+                  Make an offer
+                </Link>
+              )}
               <Link
                 className="text-link"
                 style={{ marginTop: 20 }}

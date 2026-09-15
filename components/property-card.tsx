@@ -41,6 +41,7 @@ export function PropertyCard({ property: p }: { property: PublicProperty }) {
       <div className="card-body">
         <div className="card-price">
           {money(p.price_minor)}
+          {p.negotiable && <span className="form-caption">Negotiable</span>}
           {p.price_reduced && <span className="reduced">Price reduced</span>}
         </div>
         <Link className="card-title" href={`/property/${p.slug}`}>

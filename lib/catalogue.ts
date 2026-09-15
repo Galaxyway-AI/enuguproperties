@@ -14,11 +14,19 @@ export type SearchFilters = {
   min?: string;
   max?: string;
   bedrooms?: string;
+  bathrooms?: string;
+  min_land?: string;
   check?: string;
   featured?: string;
   sort?: string;
   page?: string;
 };
+function filterNumber(value: string | undefined, maximum: number) {
+  const parsed = Number(value);
+  return value && Number.isFinite(parsed) && parsed >= 0 && parsed <= maximum
+    ? parsed
+    : null;
+}
 export async function getProperties(filters: SearchFilters = {}) {
   const page = Math.min(10000, Math.max(1, Number(filters.page) || 1));
   const pageSize = 12;
@@ -33,12 +41,18 @@ export async function getProperties(filters: SearchFilters = {}) {
     if (filters.category)
       data = data.filter((p) => p.category === filters.category);
     if (filters.area) data = data.filter((p) => p.area_slug === filters.area);
-    if (filters.min)
-      data = data.filter((p) => p.price_minor >= Number(filters.min) * 100);
-    if (filters.max)
-      data = data.filter((p) => p.price_minor <= Number(filters.max) * 100);
-    if (filters.bedrooms)
-      data = data.filter((p) => (p.bedrooms || 0) >= Number(filters.bedrooms));
+    const min = filterNumber(filters.min, 9_007_199_254_740);
+    const max = filterNumber(filters.max, 9_007_199_254_740);
+    const bedrooms = filterNumber(filters.bedrooms, 100);
+    const bathrooms = filterNumber(filters.bathrooms, 100);
+    const minLand = filterNumber(filters.min_land, 100_000_000);
+    if (min !== null) data = data.filter((p) => p.price_minor >= min * 100);
+    if (max !== null) data = data.filter((p) => p.price_minor <= max * 100);
+    if (bedrooms !== null)
+      data = data.filter((p) => (p.bedrooms || 0) >= bedrooms);
+    if (bathrooms !== null)
+      data = data.filter((p) => (p.bathrooms || 0) >= bathrooms);
+    if (minLand !== null) data = data.filter((p) => p.land_sqm >= minLand);
     if (filters.check)
       data = data.filter((p) => p.checks.some((c) => c.type === filters.check));
     if (filters.featured) data = data.filter((p) => p.featured);
@@ -65,11 +79,16 @@ export async function getProperties(filters: SearchFilters = {}) {
     );
   if (filters.category) query = query.eq("category", filters.category);
   if (filters.area) query = query.eq("area_slug", filters.area);
-  if (filters.min && Number.isFinite(Number(filters.min)))
-    query = query.gte("price_minor", Math.round(Number(filters.min) * 100));
-  if (filters.max && Number.isFinite(Number(filters.max)))
-    query = query.lte("price_minor", Math.round(Number(filters.max) * 100));
-  if (filters.bedrooms) query = query.gte("bedrooms", Number(filters.bedrooms));
+  const min = filterNumber(filters.min, 9_007_199_254_740);
+  const max = filterNumber(filters.max, 9_007_199_254_740);
+  const bedrooms = filterNumber(filters.bedrooms, 100);
+  const bathrooms = filterNumber(filters.bathrooms, 100);
+  const minLand = filterNumber(filters.min_land, 100_000_000);
+  if (min !== null) query = query.gte("price_minor", Math.round(min * 100));
+  if (max !== null) query = query.lte("price_minor", Math.round(max * 100));
+  if (bedrooms !== null) query = query.gte("bedrooms", bedrooms);
+  if (bathrooms !== null) query = query.gte("bathrooms", bathrooms);
+  if (minLand !== null) query = query.gte("land_sqm", minLand);
   if (filters.check)
     query = query.contains("checks", [{ type: filters.check }]);
   if (filters.featured) query = query.eq("featured", true);

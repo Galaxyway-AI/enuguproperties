@@ -1,5 +1,6 @@
 import "server-only";
 import { verifyPaymentSignature } from "./payment-signature";
+import { appUrl } from "./business";
 export interface PaymentProvider {
   initialise(order: {
     reference: string;
@@ -17,6 +18,13 @@ export interface PaymentProvider {
 function key() {
   const value = process.env.PAYSTACK_SECRET_KEY;
   if (!value) throw new Error("Payments have not been configured.");
+  const mode = process.env.PAYSTACK_MODE || "test";
+  if (mode === "test" && !value.startsWith("sk_test_"))
+    throw new Error("Paystack test mode requires a test secret key.");
+  if (mode === "live" && process.env.ALLOW_PAYSTACK_LIVE !== "true")
+    throw new Error("Paystack live mode is locked for controlled beta.");
+  if (!["test", "live"].includes(mode))
+    throw new Error("Invalid Paystack mode.");
   return value;
 }
 async function api(path: string, body?: unknown) {
@@ -41,7 +49,7 @@ export const paystack: PaymentProvider = {
       amount: order.amount_minor,
       currency: "NGN",
       email: order.email,
-      callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/account/billing`,
+      callback_url: appUrl("/account/billing"),
     });
     const url = new URL(data.authorization_url);
     if (url.protocol !== "https:" || url.hostname !== "checkout.paystack.com")

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { db, serviceDb } from "@/lib/supabase";
+import { db } from "@/lib/supabase";
+import { getMedia } from "@/lib/storage";
 import { z } from "zod";
 export async function GET(
   _request: NextRequest,
@@ -17,11 +18,9 @@ export async function GET(
       .eq("id", z.uuid().parse((await params).id))
       .single();
     if (!m) return new Response("Not found", { status: 404 });
-    const { data, error } = await serviceDb()
-      .storage.from("property-media")
-      .download(m.storage_path);
-    if (error || !data) return new Response("Not found", { status: 404 });
-    return new Response(data, {
+    const object = await getMedia("property-media", m.storage_path);
+    if (!object) return new Response("Not found", { status: 404 });
+    return new Response(object.body, {
       headers: {
         "Content-Type": m.mime,
         "Cache-Control": "private,no-store",

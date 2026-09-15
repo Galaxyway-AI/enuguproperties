@@ -17,6 +17,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/sell",
     "/how-it-works",
     "/buying-from-abroad",
+    "/contact",
+    "/legal/terms",
+    "/legal/privacy",
+    "/legal/seller-terms",
     ...areas.map((a) => `/areas/${a.slug}`),
     ...result.properties
       .filter((p) => !p.demo)

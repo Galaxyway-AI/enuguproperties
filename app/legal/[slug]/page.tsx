@@ -1,15 +1,18 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { legalTitles } from "@/lib/content";
+import { business } from "@/lib/business";
+import { approvedLegalDocuments } from "@/lib/legal-documents.generated";
+import { LegalDocument } from "@/components/legal-document";
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  return {
-    title: legalTitles[(await params).slug],
-    robots: { index: false, follow: true },
-  };
+  const slug = (await params).slug;
+  const approved =
+    approvedLegalDocuments[slug as keyof typeof approvedLegalDocuments];
+  return { title: approved?.title || legalTitles[slug] };
 }
 export default async function Legal({
   params,
@@ -19,19 +22,26 @@ export default async function Legal({
   const { slug } = await params;
   const title = legalTitles[slug];
   if (!title) notFound();
+  const approved =
+    approvedLegalDocuments[slug as keyof typeof approvedLegalDocuments];
+  if (approved)
+    return (
+      <section className="container section prose legal-page">
+        <span className="eyebrow">LEGAL &amp; PRIVACY</span>
+        <LegalDocument markdown={approved.markdown} />
+      </section>
+    );
   return (
     <section className="container section prose">
       <span className="eyebrow">LEGAL & PRIVACY</span>
       <h1 style={{ fontSize: 40, letterSpacing: -1 }}>{title}</h1>
-      <div className="notice">
-        Draft for Nigerian professional legal review. This page is not the final
-        agreement and is not available for contractual acceptance.
-      </div>
+      <div className="notice">This document is not currently active.</div>
       <h2>Who operates the platform</h2>
       <p>
-        Enugu Properties is operated by MAGENCY ONLINE SOLUTIONS LTD, Nigeria.
-        Company registration details, registered address and formal legal
-        contacts must be confirmed before launch.
+        Enugu Properties is operated by {business.legalName}, a{" "}
+        {business.companyType.toLowerCase()} registered in Nigeria under RC{" "}
+        {business.rcNumber}. Its registered address is{" "}
+        {business.registeredAddress.join(", ")}.
       </p>
       <h2>Scope</h2>
       <p>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Building2, ArrowUpRight } from "lucide-react";
+import { business, whatsappUrl } from "@/lib/business";
 export function Footer() {
   return (
     <footer className="footer">
@@ -17,6 +18,15 @@ export function Footer() {
             Confidence should come with it.
           </p>
           <p className="muted">Local knowledge. A clearer way forward.</p>
+          <p className="footer-company">
+            Enugu Properties is operated by {business.legalName}
+            <br />
+            RC {business.rcNumber}
+            <br />
+            {business.registeredAddress.slice(0, 4).join(", ")}
+            <br />
+            {business.registeredAddress.slice(4).join(", ")}
+          </p>
         </div>
         <div>
           <h3>Find your place</h3>
@@ -40,16 +50,30 @@ export function Footer() {
             Contact the team <ArrowUpRight size={14} />
           </Link>
           <Link href="/legal/complaints">Complaints</Link>
+          <a href={`mailto:${business.supportEmail}`}>
+            {business.supportEmail}
+          </a>
+          <a href={`mailto:${business.diasporaEmail}`}>
+            {business.diasporaEmail}
+          </a>
+          <a
+            href={whatsappUrl(
+              "Hello Enugu Properties, I would like assistance with a property enquiry.",
+            )}
+          >
+            WhatsApp {business.whatsappDisplay}
+          </a>
         </div>
       </div>
       <div className="container footer-bottom">
         <span>
-          © {new Date().getFullYear()} Enugu Properties. Operated by MAGENCY
-          ONLINE SOLUTIONS LTD.
+          © {new Date().getFullYear()} {business.brandName}. Operated by{" "}
+          {business.legalName}
         </span>
         <div>
           <Link href="/legal/privacy">Privacy</Link>
           <Link href="/legal/terms">Terms</Link>
+          <Link href="/legal/seller-terms">Seller Terms</Link>
           <Link href="/legal/cookies">Cookies</Link>
         </div>
       </div>

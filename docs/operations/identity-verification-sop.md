@@ -1,0 +1,3 @@
+# Identity verification SOP
+
+Identity verification means the authorised reviewer matched the lister to evidence accepted by the current approved procedure. It does not prove property ownership or authority to sell. Collect only required evidence, restrict access to compliance staff with MFA, check legibility and consistency, record mismatches and fail or escalate inconclusive reviews. Keep evidence quarantined until malware clearance. Retention duration is TBD pending approved privacy/KYC policy and Nigerian legal review. Public wording identifies the check and its limits without exposing identity data.

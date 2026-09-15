@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
     "test:smoke": "node scripts/smoke.mjs",
+    "readiness": "node scripts/check-readiness.mjs",
     "db:build-migration": "node scripts/build-neon-migration.mjs",
     "db:migrate": "node --env-file=.env.local scripts/migrate-neon.mjs",
     "db:verify": "node --env-file=.env.local scripts/verify-neon.mjs",
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.54.9",
+    "@cloudflare/workers-types": "^5.20260914.1",
     "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.5.1",
