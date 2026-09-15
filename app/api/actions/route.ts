@@ -87,7 +87,10 @@ export async function POST(request: NextRequest) {
       });
     else if (action === "save-property") {
       if (!features.freeListings)
-        throw new HttpError(503, "Property listing is temporarily unavailable.");
+        throw new HttpError(
+          503,
+          "Property listing is temporarily unavailable.",
+        );
       const payload = {
         ...data,
         title: text(data.title, 5, 160),
@@ -187,7 +190,10 @@ export async function POST(request: NextRequest) {
       });
     } else if (action === "checkout") {
       if (!features.paidListings)
-        throw new HttpError(503, "Paid advertising plans are launching shortly.");
+        throw new HttpError(
+          503,
+          "Paid advertising plans are launching shortly.",
+        );
       if (!process.env.PAYSTACK_SECRET_KEY)
         throw new HttpError(503, "Advertising checkout is not available yet.");
       const order = await rpc("create_order", { p_property: uuid(body.id) });
@@ -202,9 +208,15 @@ export async function POST(request: NextRequest) {
         .enum(["save", "enquire", "inspection", "offer", "report"])
         .parse(body.kind);
       if (kind === "enquire" && !features.enquiries)
-        throw new HttpError(503, "Property enquiries are temporarily unavailable.");
+        throw new HttpError(
+          503,
+          "Property enquiries are temporarily unavailable.",
+        );
       if (kind === "inspection" && !features.inspections)
-        throw new HttpError(503, "Inspection requests are temporarily unavailable.");
+        throw new HttpError(
+          503,
+          "Inspection requests are temporarily unavailable.",
+        );
       if (kind === "offer" && !features.offers)
         throw new HttpError(404, "Offers are not available.");
       if (kind !== "save") await checkBot(body.token, "buyer");
@@ -230,13 +242,65 @@ export async function POST(request: NextRequest) {
             : "Property removed from saved properties.",
         });
       }
-    } else if (action === "moderate")
+    } else if (action === "moderate") {
+      const propertyId = uuid(body.id);
+      const decision = text(data.decision, 3, 30);
+      const reason = text(data.reason, 5, 2000);
       await rpc("moderate_property", {
-        p_id: uuid(body.id),
-        p_decision: text(data.decision, 3, 30),
-        p_reason: text(data.reason, 5, 2000),
+        p_id: propertyId,
+        p_decision: decision,
+        p_reason: reason,
       });
-    else if (action === "verification")
+      const [notice] = await serverQuery<{
+        review_id: string;
+        notification_id: string | null;
+        email: string;
+        reference: string;
+        title: string;
+      }>(
+        `select review.id::text review_id,
+                (select notification.id::text
+                 from public.notifications notification
+                 where notification.user_id=property.seller_id
+                   and notification.kind='listing_update'
+                   and notification.created_at>=review.created_at
+                 order by notification.created_at desc limit 1) notification_id,
+                account.email,property.reference,property.title
+         from public.properties property
+         join neon_auth."user" account on account.id=property.seller_id::text
+         join lateral (
+           select id,created_at from public.moderation_reviews
+           where property_id=property.id order by created_at desc limit 1
+         ) review on true
+         where property.id=$1`,
+        [propertyId],
+      );
+      let emailed = false;
+      if (notice) {
+        try {
+          await mailer.send({
+            id: `moderation-${notice.review_id}`,
+            to: notice.email,
+            subject: `Listing review: ${notice.reference}`,
+            text: `${notice.title}\n\nDecision: ${decision.replaceAll("_", " ")}\n\n${reason}`,
+          });
+          emailed = true;
+          if (notice.notification_id)
+            await serverQuery(
+              "update public.email_outbox set status='sent',sent_at=now() where notification_id=$1",
+              [notice.notification_id],
+            );
+        } catch {
+          console.error(JSON.stringify({ event: "moderation_email_queued" }));
+        }
+      }
+      return Response.json({
+        ok: true,
+        message: emailed
+          ? "Decision recorded and emailed to the seller."
+          : "Decision recorded. The seller has been notified in their account and the email is queued.",
+      });
+    } else if (action === "verification")
       result = await rpc("record_verification", {
         p_property: uuid(body.id),
         p_type: text(data.type_id, 1, 40),

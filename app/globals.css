@@ -1272,6 +1272,52 @@ textarea {
   font-size: 13px;
   color: var(--muted);
 }
+.admin-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.admin-overview-grid h2,
+.admin-activity-panel h2 {
+  font-size: 22px;
+  margin: 4px 0 0;
+}
+.admin-feed {
+  border-top: 1px solid var(--line);
+}
+.admin-feed-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.admin-feed-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.admin-feed-row p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.admin-feed-row time {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.admin-listing-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0;
+  color: var(--muted);
+  font-size: 14px;
+  text-transform: capitalize;
+}
 .wizard-steps {
   display: flex;
   gap: 8px;
@@ -1836,6 +1882,13 @@ textarea {
   }
   .stat-grid {
     grid-template-columns: 1fr 1fr;
+  }
+  .admin-overview-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-feed-row {
+    flex-direction: column;
+    gap: 5px;
   }
   .stat {
     padding: 16px;

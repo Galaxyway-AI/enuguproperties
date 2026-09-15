@@ -22,39 +22,164 @@ export default async function Admin({
     return <PropertyReview id={section[1]} can={can} />;
   if (section.length > 1) notFound();
   if (tab === "overview") {
-    const queueNames = [
-      ["properties", "Listings for moderation", "moderate", "moderation"],
-      ["enquiries", "Enquiries", "support", "enquiries"],
-      ["inspections", "Inspections", "verify", "inspections"],
-      ["transaction_cases", "Transactions", "transactions", "transactions"],
-      ["orders", "Advertising orders", "finance", "payments"],
-      ["property_reports", "Property reports", "moderate", "reports"],
-    ];
+    const [cards, recentListings, recentUsers, recentActivity] =
+      await Promise.all([
+        Promise.all(
+          [
+            can("moderate") && {
+              title: "Listings awaiting review",
+              path: "moderation",
+              query: c
+                .from("properties")
+                .select("id", { count: "exact", head: true })
+                .in("status", ["submitted", "under_review"]),
+            },
+            can("moderate") && {
+              title: "Amendments requested",
+              path: "moderation",
+              query: c
+                .from("properties")
+                .select("id", { count: "exact", head: true })
+                .eq("status", "needs_changes"),
+            },
+            can("compliance") && {
+              title: "Registered users",
+              path: "accounts",
+              query: c
+                .from("profiles")
+                .select("id", { count: "exact", head: true }),
+            },
+            can("support") && {
+              title: "New enquiries",
+              path: "enquiries",
+              query: c
+                .from("enquiries")
+                .select("id", { count: "exact", head: true })
+                .eq("status", "new"),
+            },
+            can("support") && {
+              title: "Open support cases",
+              path: "support",
+              query: c
+                .from("support_tickets")
+                .select("id", { count: "exact", head: true })
+                .in("status", ["open", "assigned"]),
+            },
+            can("audit") && {
+              title: "Recorded activity",
+              path: "audit",
+              query: c
+                .from("audit_logs")
+                .select("id", { count: "exact", head: true }),
+            },
+          ]
+            .filter(Boolean)
+            .map(async (card) => ({
+              ...(card as {
+                title: string;
+                path: string;
+                query: PromiseLike<{ count: number | null }>;
+              }),
+              count: (await card!.query).count || 0,
+            })),
+        ),
+        can("moderate")
+          ? c
+              .from("properties")
+              .select("id,reference,title,status,created_at")
+              .in("status", ["submitted", "under_review", "needs_changes"])
+              .order("updated_at", { ascending: false })
+              .limit(5)
+          : Promise.resolve({ data: [] }),
+        can("compliance")
+          ? c
+              .from("profiles")
+              .select("id,full_name,seller_type,status,created_at")
+              .order("created_at", { ascending: false })
+              .limit(5)
+          : Promise.resolve({ data: [] }),
+        can("audit")
+          ? c
+              .from("audit_logs")
+              .select("id,action,entity,created_at")
+              .order("created_at", { ascending: false })
+              .limit(8)
+          : Promise.resolve({ data: [] }),
+      ]);
     return (
       <>
-        <span className="eyebrow">STAFF WORKSPACE</span>
-        <h1>The next action matters.</h1>
+        <span className="eyebrow">ADMIN CONTROL PANEL</span>
+        <h1>Marketplace overview</h1>
         <p>
-          Work queues reflect your permissions. All important decisions are
-          recorded.
+          Monitor new accounts and submissions, review listings, and follow the
+          latest staff activity from one place.
         </p>
         <div className="stat-grid">
-          {await Promise.all(
-            queueNames
-              .filter(([, , p]) => can(p))
-              .map(async ([table, title, , path]) => {
-                const { count } = await c
-                  .from(table)
-                  .select("id", { count: "exact", head: true });
-                return (
-                  <Link className="stat" href={`/admin/${path}`} key={table}>
-                    <strong>{count || 0}</strong>
-                    <span>{title}</span>
-                  </Link>
-                );
-              }),
+          {cards.map((card) => (
+            <Link
+              className="stat"
+              href={`/admin/${card.path}`}
+              key={card.title}
+            >
+              <strong>{card.count}</strong>
+              <span>{card.title}</span>
+            </Link>
+          ))}
+        </div>
+        <div className="admin-overview-grid">
+          {can("moderate") && (
+            <section className="panel">
+              <div className="dashboard-heading">
+                <div>
+                  <span className="eyebrow">LISTING QUEUE</span>
+                  <h2>Latest submissions</h2>
+                </div>
+                <Link className="text-link" href="/admin/moderation">
+                  View all
+                </Link>
+              </div>
+              <AdminFeed
+                rows={recentListings.data || []}
+                empty="No listings are waiting for review."
+                href={(row) => `/admin/property/${row.id}`}
+              />
+            </section>
+          )}
+          {can("compliance") && (
+            <section className="panel">
+              <div className="dashboard-heading">
+                <div>
+                  <span className="eyebrow">ACCOUNTS</span>
+                  <h2>Newest users</h2>
+                </div>
+                <Link className="text-link" href="/admin/accounts">
+                  View all
+                </Link>
+              </div>
+              <AdminFeed
+                rows={recentUsers.data || []}
+                empty="No users have registered yet."
+              />
+            </section>
           )}
         </div>
+        {can("audit") && (
+          <section className="panel admin-activity-panel">
+            <div className="dashboard-heading">
+              <div>
+                <span className="eyebrow">AUDIT TRAIL</span>
+                <h2>Recent activity</h2>
+              </div>
+              <Link className="text-link" href="/admin/audit">
+                View audit history
+              </Link>
+            </div>
+            <AdminFeed
+              rows={recentActivity.data || []}
+              empty="No staff activity has been recorded."
+            />
+          </section>
+        )}
       </>
     );
   }
@@ -243,6 +368,20 @@ export default async function Admin({
     query = query.in("status", ["submitted", "under_review", "needs_changes"]);
   const { data: rows, error, count } = await query;
   if (error) throw error;
+  const sellerNames = new Map<string, string>();
+  if (tab === "moderation" && rows?.length) {
+    const sellerIds = [...new Set(rows.map((row) => row.seller_id))];
+    const { data: sellers } = await c
+      .from("profiles")
+      .select("id,full_name,seller_type")
+      .in("id", sellerIds);
+    sellers?.forEach((seller) =>
+      sellerNames.set(
+        seller.id,
+        `${seller.full_name || "Unnamed user"} · ${seller.seller_type}`,
+      ),
+    );
+  }
   return (
     <>
       <h1>{tab[0].toUpperCase() + tab.slice(1)}</h1>
@@ -313,6 +452,21 @@ export default async function Admin({
                 </span>
               </div>
               {row.message && <p>{row.message}</p>}
+              {tab === "moderation" && (
+                <div className="admin-listing-summary">
+                  <span>{money(row.price_minor)}</span>
+                  <span>{row.category?.replaceAll("-", " ")}</span>
+                  <span>
+                    {sellerNames.get(row.seller_id) || "Seller profile"}
+                  </span>
+                </div>
+              )}
+              {tab === "accounts" && (
+                <p>
+                  {row.seller_type?.replaceAll("_", " ")} ·{" "}
+                  {row.phone || "No phone number"}
+                </p>
+              )}
               {row.amount_minor && <p>{money(row.amount_minor)}</p>}
               {row.property_id && (
                 <p className="form-caption">Property: {row.property_id}</p>
@@ -611,6 +765,7 @@ async function PropertyReview({
     { data: verificationTypes },
     { data: audits },
     { data: risks },
+    { data: reviews },
   ] = await Promise.all([
     c.from("property_media").select("id,kind,alt").eq("property_id", id),
     c
@@ -636,6 +791,11 @@ async function PropertyReview({
       .order("created_at", { ascending: false })
       .limit(30),
     c.from("risk_flags").select("id,reason,status").eq("property_id", id),
+    c
+      .from("moderation_reviews")
+      .select("id,decision,reason,created_at")
+      .eq("property_id", id)
+      .order("created_at", { ascending: false }),
   ]);
   return (
     <>
@@ -735,26 +895,62 @@ async function PropertyReview({
         {can("moderate") && (
           <section className="panel">
             <h2 style={{ fontSize: 24 }}>Moderation decision</h2>
-            <ActionForm
-              action="moderate"
-              extra={{ id }}
-              label="Record moderation decision"
-            >
-              <label>
-                Decision
-                <select name="decision">
-                  <option value="under_review">Start review</option>
-                  <option value="live">Approve and publish</option>
-                  <option value="needs_changes">Request changes</option>
-                  <option value="rejected">Reject</option>
-                  <option value="paused">Pause public listing</option>
-                </select>
-              </label>
-              <label>
-                Reason / seller instructions
-                <textarea name="reason" minLength={5} required />
-              </label>
-            </ActionForm>
+            {moderationOptions(p.status).length ? (
+              <ActionForm
+                action="moderate"
+                extra={{ id }}
+                label="Record decision and notify seller"
+              >
+                <label>
+                  Decision
+                  <select name="decision">
+                    {moderationOptions(p.status).map(([value, label]) => (
+                      <option value={value} key={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Decision reason or amendments required
+                  <textarea
+                    name="reason"
+                    minLength={5}
+                    required
+                    placeholder="Give the seller clear, specific instructions. This appears in their account and is sent by email."
+                  />
+                </label>
+                <p className="form-caption">
+                  The seller receives this decision and your instructions in
+                  their account and by email.
+                </p>
+              </ActionForm>
+            ) : (
+              <div className="notice">
+                This listing is waiting for the seller to submit an amended
+                version before another decision can be recorded.
+              </div>
+            )}
+          </section>
+        )}
+        {can("moderate") && (
+          <section className="panel">
+            <h2 style={{ fontSize: 24 }}>Review history</h2>
+            {reviews?.length ? (
+              <div className="admin-feed">
+                {reviews.map((review) => (
+                  <div className="admin-feed-row" key={review.id}>
+                    <div>
+                      <strong>{review.decision.replaceAll("_", " ")}</strong>
+                      <p>{review.reason}</p>
+                    </div>
+                    <time>{adminDate(review.created_at)}</time>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>No moderation decisions have been recorded.</p>
+            )}
           </section>
         )}
         {can("verify") && (
@@ -876,4 +1072,82 @@ async function PropertyReview({
       </div>
     </>
   );
+}
+
+function adminDate(value: string) {
+  return `${new Date(value).toLocaleString("en-GB", {
+    timeZone: "Africa/Lagos",
+    dateStyle: "medium",
+    timeStyle: "short",
+  })} WAT`;
+}
+
+function AdminFeed({
+  rows,
+  empty,
+  href,
+}: {
+  rows: AdminFeedRow[];
+  empty: string;
+  href?: (row: AdminFeedRow) => string;
+}) {
+  if (!rows.length) return <p>{empty}</p>;
+  return (
+    <div className="admin-feed">
+      {rows.map((row) => {
+        const content = (
+          <>
+            <div>
+              <strong>
+                {row.title || row.reference || row.full_name || row.action}
+              </strong>
+              <p>
+                {(
+                  row.status ||
+                  row.seller_type ||
+                  row.entity ||
+                  "activity"
+                ).replaceAll("_", " ")}
+              </p>
+            </div>
+            <time>{adminDate(row.created_at)}</time>
+          </>
+        );
+        return href ? (
+          <Link className="admin-feed-row" href={href(row)} key={row.id}>
+            {content}
+          </Link>
+        ) : (
+          <div className="admin-feed-row" key={row.id}>
+            {content}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+type AdminFeedRow = {
+  id: string | number;
+  title?: string | null;
+  reference?: string | null;
+  full_name?: string | null;
+  action?: string | null;
+  status?: string | null;
+  seller_type?: string | null;
+  entity?: string | null;
+  created_at: string;
+};
+
+function moderationOptions(status: string): [string, string][] {
+  if (status === "submitted") return [["under_review", "Start review"]];
+  if (status === "under_review")
+    return [
+      ["live", "Approve and publish"],
+      ["needs_changes", "Request amendments"],
+      ["rejected", "Reject listing"],
+    ];
+  if (["live", "under_offer"].includes(status))
+    return [["paused", "Pause public listing"]];
+  return [];
 }
