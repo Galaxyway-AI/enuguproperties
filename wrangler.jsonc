@@ -75,7 +75,7 @@
         "PREVIEW_MODE": "false",
         "BETA_MODE": "false",
         "PAYSTACK_MODE": "test",
-        "FEATURE_REGISTRATION": "false",
+        "FEATURE_REGISTRATION": "true",
         "FEATURE_FREE_LISTINGS": "true",
         "FEATURE_ENQUIRIES": "true",
         "FEATURE_INSPECTIONS": "true",

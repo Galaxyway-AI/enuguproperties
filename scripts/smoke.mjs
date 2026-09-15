@@ -90,7 +90,12 @@ if (new URL(base).hostname === "enuguproperties.com") {
   assert.doesNotMatch(robots, /^disallow:\s*\/\s*$/im);
 
   const register = await (await fetch(base + "/register")).text();
-  assert.match(register, /Seller registration is opening shortly/);
+  if (process.env.EXPECT_REGISTRATION === "true") {
+    assert.match(register, /Create account/);
+    assert.doesNotMatch(register, /Seller registration is opening shortly/);
+  } else {
+    assert.match(register, /Seller registration is opening shortly/);
+  }
 
   const pricing = await (await fetch(base + "/pricing")).text();
   assert.match(pricing, /Paid plans are launching shortly/);
