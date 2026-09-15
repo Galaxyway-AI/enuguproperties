@@ -16,6 +16,13 @@ export function AuthForm({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
+  if (message && mode === "register")
+    return (
+      <div className="notice success submission-success" role="status">
+        <h2>Account created</h2>
+        <p>{message}</p>
+      </div>
+    );
   return (
     <form
       className="stack-form"

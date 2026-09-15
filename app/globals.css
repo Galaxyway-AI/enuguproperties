@@ -962,6 +962,16 @@ textarea {
   color: #9a332a;
   border-color: #edc8c2;
 }
+.submission-success {
+  padding: 28px;
+}
+.submission-success h2 {
+  margin: 0 0 8px;
+  color: var(--green);
+}
+.submission-success p {
+  margin: 0;
+}
 .stack-form {
   display: flex;
   flex-direction: column;

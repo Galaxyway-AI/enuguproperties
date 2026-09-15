@@ -8,18 +8,29 @@ export function ActionForm({
   children,
   label = "Save changes",
   bot = false,
+  replaceOnSuccess = false,
+  successTitle = "Completed",
 }: {
   action: string;
   extra?: Record<string, unknown>;
   children?: React.ReactNode;
   label?: string;
   bot?: boolean;
+  replaceOnSuccess?: boolean;
+  successTitle?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
   const router = useRouter();
+  if (message && replaceOnSuccess)
+    return (
+      <div className="notice success submission-success" role="status">
+        <h2>{successTitle}</h2>
+        <p>{message}</p>
+      </div>
+    );
   return (
     <form
       className="stack-form"

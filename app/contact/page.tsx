@@ -58,7 +58,13 @@ export default async function Contact({
           </div>
         </div>
         <div className="prose panel">
-          <ActionForm action="contact" label="Send your enquiry" bot>
+          <ActionForm
+            action="contact"
+            label="Send your enquiry"
+            bot
+            replaceOnSuccess
+            successTitle="Message sent"
+          >
             <div className="form-grid">
               <label>
                 Email address

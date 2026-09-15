@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db, configured } from "@/lib/supabase";
 import { serverQuery } from "@/lib/server-db";
 import { createEvidenceToken } from "@/lib/signed-media";
-import { appUrl, features } from "@/lib/business";
+import { appUrl, business, features } from "@/lib/business";
 import {
   sameOrigin,
   rateLimit,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/security";
 import { toMinor } from "@/lib/domain";
 import { paystack } from "@/lib/payments";
+import { mailer } from "@/lib/email";
 const uuid = (v: unknown) => z.uuid().parse(v);
 const text = (v: unknown, min = 1, max = 5000) =>
   z.string().min(min).max(max).parse(v);
@@ -41,19 +42,24 @@ export async function POST(request: NextRequest) {
     if (action === "contact") {
       await checkBot(body.token, "contact");
       const email = z.email().parse(data.email);
+      const category = text(data.category, 3, 60).replace(/[\r\n]+/g, " ");
+      const message = text(data.message, 20);
       await rateLimit(`contact:${email}`, 3, 600);
       const [ticket] = await serverQuery<{ reference: string }>(
         "insert into public.support_tickets(user_id,email,category,message) values($1,$2,$3,$4) returning reference",
-        [
-          user?.id || null,
-          email,
-          text(data.category, 3, 60),
-          text(data.message, 20),
-        ],
+        [user?.id || null, email, category, message],
       );
       if (!ticket) throw new Error("Support ticket was not recorded.");
+      await mailer.send({
+        id: `contact-${ticket.reference}`,
+        to: process.env.CONTACT_RECIPIENT_EMAIL || business.supportEmail,
+        replyTo: email,
+        subject: `Contact enquiry ${ticket.reference}: ${category}`,
+        text: `From: ${email}\nCategory: ${category}\nReference: ${ticket.reference}\n\n${message}`,
+        accountLink: false,
+      });
       return Response.json({
-        message: `Your enquiry is recorded. Reference: ${ticket.reference}.`,
+        message: `Your message has been sent. Reference: ${ticket.reference}.`,
       });
     }
     if (!user) throw new HttpError(401, "Please sign in to continue.");

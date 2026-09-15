@@ -92,6 +92,7 @@
         "UK_DIASPORA_CONTACT_ENABLED": "false",
         "SUPPORT_EMAIL": "support@enuguproperties.com",
         "EMAIL_FROM": "Enugu Properties <support@enuguproperties.com>",
+        "CONTACT_RECIPIENT_EMAIL": "emailenugu@gmail.com",
         "DIASPORA_EMAIL": "diaspora@enuguproperties.com",
         "WHATSAPP_NUMBER": "+2349033660763",
         "COMPANY_REGISTRATION_NUMBER": "8229228",
