@@ -1,6 +1,6 @@
 # Deployment runbook
 
-The application has two build targets: standard Next.js for local development and vinext for Cloudflare Workers. Cloudflare hosts the application and private R2 media; Neon provides branchable PostgreSQL and Auth. Native Sharp/ffmpeg processing remains available in the Node development target. Before production uploads are enabled on Workers, move image sanitisation to a Worker-compatible WASM/Cloudflare Images pipeline and video sanitisation to Cloudflare Stream or a dedicated processing service.
+The application has two build targets: standard Next.js for local development and vinext for Cloudflare Workers. Cloudflare hosts the application and private R2 media; Neon provides branchable PostgreSQL and Auth. Browsers resize photographs, remove source metadata by rendering them to WebP, and the Worker independently validates the resulting metadata-free WebP container before storage. Native ffmpeg processing remains available only in the Node development target; move video sanitisation to Cloudflare Stream or a dedicated processing service before enabling production video uploads.
 
 ## Staging first
 

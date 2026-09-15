@@ -47,6 +47,22 @@ export default async function Listing({
       .eq("property_id", id)
       .order("created_at", { ascending: false }),
   ]);
+  const submissionBlockers = [
+    ...(p.description?.trim().length >= 50
+      ? []
+      : ["Expand the property description to at least 50 characters."]),
+    ...(media.data?.some((item) => item.kind === "image")
+      ? []
+      : ["Upload at least one property photograph."]),
+    ...(docs.data?.some((document) =>
+      types.data?.some(
+        (type) =>
+          type.id === document.type_id && type.classification === "property",
+      ),
+    )
+      ? []
+      : ["Upload ownership or authority evidence in a property category."]),
+  ];
   return (
     <>
       <div className="dashboard-heading">
@@ -153,12 +169,27 @@ export default async function Listing({
           )}
           {p.plan_id !== "free" && !features.paidListings && (
             <div className="notice">
-              Paid advertising plans are launching shortly. Select the Free
-              plan or contact our property team for early access.
+              Paid advertising plans are launching shortly. Select the Free plan
+              or contact our property team for early access.
             </div>
           )}
-          {agreement.data ? (
+          {["submitted", "under_review"].includes(p.status) ? (
+            <div className="notice success" role="status">
+              This listing has been submitted and is awaiting review.
+            </div>
+          ) : agreement.data &&
+            ["draft", "needs_changes", "payment_pending"].includes(p.status) ? (
             <>
+              {submissionBlockers.length > 0 && (
+                <div className="notice" role="status">
+                  <strong>Complete these items before submission:</strong>
+                  <ul>
+                    {submissionBlockers.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <details style={{ marginBlock: 20 }}>
                 <summary>
                   Read seller agreement · {agreement.data.version}
@@ -167,30 +198,34 @@ export default async function Listing({
                   {agreement.data.content}
                 </p>
               </details>
-              <ActionForm
-                action="submit"
-                extra={{ id }}
-                label="Submit for review"
-              >
-                <input
-                  type="hidden"
-                  name="agreement_id"
-                  value={agreement.data.id}
-                />
-                <label className="checkbox-label">
-                  <input type="checkbox" name="accepted" required />I confirm
-                  that this information is accurate, I have authority to
-                  advertise this property and I accept the seller agreement
-                  shown above.
-                </label>
-              </ActionForm>
+              {submissionBlockers.length === 0 && (
+                <ActionForm
+                  action="submit"
+                  extra={{ id }}
+                  label="Submit for review"
+                  replaceOnSuccess
+                  successTitle="Listing submitted"
+                >
+                  <input
+                    type="hidden"
+                    name="agreement_id"
+                    value={agreement.data.id}
+                  />
+                  <label className="checkbox-label">
+                    <input type="checkbox" name="accepted" required />I confirm
+                    that this information is accurate, I have authority to
+                    advertise this property and I accept the seller agreement
+                    shown above.
+                  </label>
+                </ActionForm>
+              )}
             </>
-          ) : (
+          ) : !agreement.data ? (
             <div className="notice">
               Submission opens after professionally reviewed seller terms are
               configured. You can prepare your draft and evidence now.
             </div>
-          )}
+          ) : null}
         </section>
       </div>
     </>

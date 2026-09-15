@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
-import sharp from "sharp";
 import { db, configured } from "@/lib/supabase";
 import { serverQuery } from "@/lib/server-db";
 import { deleteMedia, putMedia, type MediaArea } from "@/lib/storage";
@@ -11,6 +10,7 @@ import {
   HttpError,
 } from "@/lib/security";
 import { z } from "zod";
+import { validateMetadataFreeWebp } from "@/lib/webp";
 export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   let orphan: { bucket: MediaArea; path: string } | null = null;
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
           "Only your editable draft can receive uploads.",
         );
     }
-    let bytes = Buffer.from(await file.arrayBuffer());
+    const bytes = Buffer.from(await file.arrayBuffer());
     let mime = "image/webp";
     let ext = "webp";
     if (kind === "document" && bytes.subarray(0, 5).toString() === "%PDF-") {
@@ -85,33 +85,16 @@ export async function POST(request: NextRequest) {
       mime = "application/pdf";
       ext = "pdf";
     } else {
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
+      if (file.type !== "image/webp")
         throw new HttpError(
           400,
-          "Upload a JPEG, PNG, WebP image or a PDF document.",
+          "The photograph could not be prepared securely. Try a JPEG, PNG or WebP image.",
         );
-      const image = sharp(bytes, {
-        limitInputPixels: 40000000,
-        failOn: "error",
-      });
-      const metadata = await image.metadata();
-      if (
-        !["jpeg", "png", "webp"].includes(metadata.format || "") ||
-        (metadata.pages || 1) > 1
-      )
-        throw new HttpError(400, "Unsupported image content.");
-      bytes = Buffer.from(
-        await image
-          .rotate()
-          .resize({
-            width: 2400,
-            height: 2400,
-            fit: "inside",
-            withoutEnlargement: true,
-          })
-          .webp({ quality: 85 })
-          .toBuffer(),
-      );
+      try {
+        validateMetadataFreeWebp(bytes);
+      } catch {
+        throw new HttpError(400, "The photograph could not be validated.");
+      }
     }
     const bucket: MediaArea =
       kind === "image" ? "property-media" : "private-evidence";
@@ -129,7 +112,15 @@ export async function POST(request: NextRequest) {
     const rows = staff
       ? await serverQuery<{ id: string }>(
           "select public.attach_staff_evidence($1,$2,$3,$4,$5,$6,$7) as id",
-          [property, user.id, path, common.p_type, file.name, mime, common.p_hash],
+          [
+            property,
+            user.id,
+            path,
+            common.p_type,
+            file.name,
+            mime,
+            common.p_hash,
+          ],
         )
       : await serverQuery<{ id: string }>(
           "select public.attach_upload($1,$2,$3,$4,$5,$6,$7,$8,$9) as id",
@@ -156,8 +147,7 @@ export async function POST(request: NextRequest) {
           : `Photograph securely uploaded. Reference: ${id}`,
     });
   } catch (e) {
-    if (orphan)
-      await deleteMedia(orphan.bucket, orphan.path);
+    if (orphan) await deleteMedia(orphan.bucket, orphan.path);
     return errorResponse(e);
   }
 }

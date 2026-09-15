@@ -477,9 +477,13 @@ export function ListingWizard({
             <textarea
               name="description"
               defaultValue={initial.description}
+              minLength={50}
               maxLength={15000}
               placeholder="Describe the property accurately. Include only facts you can support."
             />
+            <span className="form-caption">
+              Use at least 50 characters so reviewers have enough detail.
+            </span>
           </label>
           <label>
             Features, separated by commas

@@ -1,6 +1,31 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+async function prepareImage(file: File) {
+  const bitmap = await createImageBitmap(file, {
+    imageOrientation: "from-image",
+  });
+  try {
+    if (bitmap.width * bitmap.height > 40_000_000)
+      throw new Error("Choose an image smaller than 40 megapixels.");
+    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("This browser could not prepare the image.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.85),
+    );
+    if (!blob) throw new Error("This browser could not prepare the image.");
+    const name = file.name.replace(/\.[^.]+$/, "") || "property-photo";
+    return new File([blob], `${name}.webp`, { type: "image/webp" });
+  } finally {
+    bitmap.close();
+  }
+}
 export function UploadForm({
   property,
   kind,
@@ -29,6 +54,9 @@ export function UploadForm({
         data.set("kind", kind);
         data.set("staff", String(staff));
         try {
+          const selected = data.get("file");
+          if (selected instanceof File && selected.type.startsWith("image/"))
+            data.set("file", await prepareImage(selected));
           const r = await fetch("/api/uploads", { method: "POST", body: data });
           const result = await r.json();
           if (!r.ok) throw new Error(result.error);
