@@ -37,9 +37,16 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
   await sql.exec(
     `insert into auth.users(id) values('${seller}'),('${other}'),('${staff}'),('${buyer}'); update public.profiles set full_name='Test account',phone='+234000000000'; insert into public.user_roles values('${staff}','super_admin');`,
   );
-  await t.test("only assigned staff receive staff permissions", async () => {
+  await t.test("only the configured staff account bypasses MFA", async () => {
     await sql.exec(
       `set role authenticated; select set_config('request.jwt.claim.sub','${staff}',false); select set_config('request.jwt.claim.aal','aal1',false);`,
+    );
+    assert.deepEqual(
+      (await sql.query("select public.my_permissions() permission")).rows,
+      [],
+    );
+    await sql.exec(
+      `reset role; insert into public.staff_mfa_exemptions(user_id,reason) values('${staff}','Initial admin account'); set role authenticated;`,
     );
     assert.ok(
       (await sql.query("select public.my_permissions() permission")).rows
