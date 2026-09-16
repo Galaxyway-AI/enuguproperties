@@ -74,7 +74,11 @@ export function VideoUpload({ property }: { property: string }) {
           router.refresh();
         } catch (problem) {
           setError(
-            problem instanceof Error ? problem.message : "Video upload failed.",
+            problem instanceof TypeError && problem.message === "Failed to fetch"
+              ? "The browser could not reach the secure video service. Check your connection, refresh the page and try again."
+              : problem instanceof Error
+                ? problem.message
+                : "Video upload failed.",
           );
         } finally {
           setBusy(false);
