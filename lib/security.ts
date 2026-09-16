@@ -86,6 +86,11 @@ export function databaseActionErrorMessage(error: unknown) {
     ? `The database rejected this action (${code}). Refresh the page and try again.`
     : "The database rejected this action. Refresh the page and try again.";
 }
+
+export function isDatabaseActionError(error: unknown) {
+  const { code } = errorDetails(error);
+  return Boolean(code || databaseErrorMessage(error));
+}
 export function sameOrigin(request: NextRequest) {
   const expected = new URL(
     process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000",

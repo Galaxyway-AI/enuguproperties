@@ -7,6 +7,7 @@ import {
   databaseActionErrorMessage,
   errorResponse,
   HttpError,
+  isDatabaseActionError,
   rateLimit,
   sameOrigin,
   validationErrorMessage,
@@ -175,9 +176,29 @@ export async function POST(request: NextRequest) {
         { error: validationErrorMessage(error) },
         { status: 400 },
       );
-    const databaseMessage = databaseActionErrorMessage(error);
-    if (databaseMessage && !(error instanceof HttpError))
-      return Response.json({ error: databaseMessage }, { status: 400 });
+    if (isDatabaseActionError(error) && !(error instanceof HttpError))
+      return Response.json(
+        { error: databaseActionErrorMessage(error) },
+        { status: 400 },
+      );
+    if (
+      error instanceof Error &&
+      error.message.includes("Storage capacity exceeded")
+    ) {
+      console.error(
+        JSON.stringify({
+          event: "video_storage_capacity_exceeded",
+          at: new Date().toISOString(),
+        }),
+      );
+      return Response.json(
+        {
+          error:
+            "Video storage is not active yet. Please contact Enugu Properties support while the administrator completes the video service setup.",
+        },
+        { status: 503 },
+      );
+    }
     return errorResponse(error);
   }
 }
