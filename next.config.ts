@@ -31,10 +31,21 @@ const config: NextConfig = {
             value:
               "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com" +
               (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "") +
-              "; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co; connect-src 'self' https://*.supabase.co https://*.neon.tech https://challenges.cloudflare.com https://upload.cloudflarestream.com; frame-src https://challenges.cloudflare.com https://*.cloudflarestream.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+              "; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co; connect-src 'self' https://*.supabase.co https://*.neon.tech https://challenges.cloudflare.com https://upload.cloudflarestream.com; frame-src 'self' https://challenges.cloudflare.com https://*.cloudflarestream.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
           },
         ],
       },
+      ...["/api/media/:path*", "/api/private-media/:path*"].map((source) => ({
+        source,
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          {
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'none'; media-src 'self' blob:; frame-ancestors 'self'",
+          },
+        ],
+      })),
     ];
   },
 };

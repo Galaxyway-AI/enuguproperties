@@ -106,12 +106,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const appHostname = new URL(process.env.NEXT_PUBLIC_APP_URL!).hostname;
+      const allowedOrigins = appHostname.startsWith("www.")
+        ? [appHostname, appHostname.slice(4)]
+        : [appHostname, `www.${appHostname}`];
       const direct = await createVideoUpload({
         maxDurationSeconds: plan.video_seconds,
         expiry: new Date(Date.now() + 15 * 60_000).toISOString(),
         creator: user.id,
         meta: { property: input.property, name: input.name },
-        allowedOrigins: [new URL(process.env.NEXT_PUBLIC_APP_URL!).hostname],
+        allowedOrigins,
         requireSignedURLs: true,
       });
       streamIdToRemove = direct.id;
