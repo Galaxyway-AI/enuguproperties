@@ -1,7 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BedDouble, Bath, Maximize, MapPin, ArrowUpRight } from "lucide-react";
-import { money, verificationLabels, type PublicProperty } from "@/lib/domain";
+import {
+  listingPurposeDescription,
+  listingPurposeSuffix,
+  money,
+  verificationLabels,
+  type PublicProperty,
+} from "@/lib/domain";
 import { SaveButton } from "./save-button";
 export function PropertyCard({ property: p }: { property: PublicProperty }) {
   return (
@@ -32,15 +38,18 @@ export function PropertyCard({ property: p }: { property: PublicProperty }) {
         <SaveButton id={p.id} demo={p.demo} initialSaved={p.saved} />
         <span className="image-category">
           {p.category === "houses"
-            ? "House for sale"
+            ? `House ${listingPurposeDescription(p.listing_purpose)}`
             : p.category === "land"
-              ? "Land for sale"
-              : "Property for sale"}
+              ? `Land ${listingPurposeDescription(p.listing_purpose)}`
+              : `Property ${listingPurposeDescription(p.listing_purpose)}`}
         </span>
       </div>
       <div className="card-body">
         <div className="card-price">
           {money(p.price_minor)}
+          <small className="price-period">
+            {listingPurposeSuffix(p.listing_purpose)}
+          </small>
           {p.negotiable && <span className="form-caption">Negotiable</span>}
           {p.price_reduced && <span className="reduced">Price reduced</span>}
         </div>

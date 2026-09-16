@@ -11,6 +11,23 @@ export const categoryLabels: Record<Category, string> = {
   commercial: "Commercial",
   "new-developments": "New developments",
 };
+export const listingPurposes = ["sale", "rent", "short-let"] as const;
+export type ListingPurpose = (typeof listingPurposes)[number];
+export const listingPurposeLabels: Record<ListingPurpose, string> = {
+  sale: "Buy",
+  rent: "Rent",
+  "short-let": "Short let",
+};
+export function listingPurposeSuffix(purpose?: string) {
+  if (purpose === "rent") return " / year";
+  if (purpose === "short-let") return " / night";
+  return "";
+}
+export function listingPurposeDescription(purpose?: string) {
+  if (purpose === "rent") return "for rent";
+  if (purpose === "short-let") return "for short let";
+  return "for sale";
+}
 export const verificationLabels: Record<string, string> = {
   identity: "Identity verified",
   authority: "Authority to market confirmed",
@@ -27,6 +44,7 @@ export type PublicProperty = {
   title: string;
   description: string;
   category: Category;
+  listing_purpose?: ListingPurpose;
   area: string;
   area_slug: string;
   price_minor: number;

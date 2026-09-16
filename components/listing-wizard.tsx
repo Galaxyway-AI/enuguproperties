@@ -5,6 +5,7 @@ type Draft = {
   id?: string;
   title?: string;
   category?: string;
+  listing_purpose?: string;
   location_id?: string;
   description?: string;
   price_minor?: number;
@@ -36,6 +37,9 @@ export function ListingWizard({
   const [id, setId] = useState(initial.id || "");
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState(initial.category || "houses");
+  const [purpose, setPurpose] = useState(
+    initial.listing_purpose || "sale",
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -187,6 +191,18 @@ export function ListingWizard({
               />
             </label>
             <label>
+              What are you advertising?
+              <select
+                name="listing_purpose"
+                value={purpose}
+                onChange={(event) => setPurpose(event.target.value)}
+              >
+                <option value="sale">Property for sale</option>
+                <option value="rent">Property for rent</option>
+                <option value="short-let">Short let</option>
+              </select>
+            </label>
+            <label>
               Property category
               <select
                 name="category"
@@ -311,7 +327,11 @@ export function ListingWizard({
               </select>
             </label>
             <label>
-              Asking price (₦)
+              {purpose === "rent"
+                ? "Annual rent (₦)"
+                : purpose === "short-let"
+                  ? "Nightly rate (₦)"
+                  : "Asking price (₦)"}
               <input
                 name="price"
                 inputMode="decimal"

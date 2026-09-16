@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { MapPin, ShieldCheck, ArrowUpRight } from "lucide-react";
 import { getProperty } from "@/lib/catalogue";
-import { money, verificationLabels } from "@/lib/domain";
+import {
+  listingPurposeDescription,
+  listingPurposeSuffix,
+  money,
+  verificationLabels,
+} from "@/lib/domain";
 import { Gallery } from "@/components/gallery";
 import { features, whatsappUrl } from "@/lib/business";
 export const dynamic = "force-dynamic";
@@ -92,7 +97,7 @@ export default async function Property({
         <div>
           <div className="detail-title">
             <span className="eyebrow">
-              {p.category.replaceAll("-", " ")} · {p.reference}
+              {p.category.replaceAll("-", " ")} {listingPurposeDescription(p.listing_purpose)} · {p.reference}
             </span>
             <h1>{p.title}</h1>
             <p className="card-location">
@@ -205,8 +210,17 @@ export default async function Property({
           </div>
         </div>
         <aside className="panel detail-sidebar">
-          <span className="eyebrow">ASKING PRICE</span>
-          <div className="detail-price">{money(p.price_minor)}</div>
+          <span className="eyebrow">
+            {p.listing_purpose === "rent"
+              ? "ANNUAL RENT"
+              : p.listing_purpose === "short-let"
+                ? "NIGHTLY RATE"
+                : "ASKING PRICE"}
+          </span>
+          <div className="detail-price">
+            {money(p.price_minor)}
+            <small>{listingPurposeSuffix(p.listing_purpose)}</small>
+          </div>
           {p.negotiable && <p className="form-caption">Price is negotiable</p>}
           <p>Listed by a property {p.seller_type}</p>
           <hr

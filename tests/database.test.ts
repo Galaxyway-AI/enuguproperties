@@ -21,6 +21,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0012_registration_activation.sql",
     "0013_staff_access.sql",
     "0014_listing_usability.sql",
+    "0015_marketplace_listing_purposes.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -122,6 +123,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
   const payload = {
     title: "Test residential land",
     category: "land",
+    listing_purpose: "rent",
     property_type: "residential-land",
     location_id: area,
     description:
@@ -168,6 +170,24 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
             ...payload,
             title: "Invalid structured details",
             details: { ...payload.details, topography: "unknown" },
+          }),
+        ]),
+      );
+      assert.equal(
+        (
+          await sql.query<{ listing_purpose: string }>(
+            "select listing_purpose from public.properties where id=$1",
+            [property],
+          )
+        ).rows[0].listing_purpose,
+        "rent",
+      );
+      await assert.rejects(
+        sql.query("select public.save_property(null,$1::jsonb)", [
+          JSON.stringify({
+            ...payload,
+            title: "Invalid listing purpose",
+            listing_purpose: "holiday-home",
           }),
         ]),
       );

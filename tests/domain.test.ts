@@ -6,6 +6,8 @@ import {
   commission,
   canTransition,
   safeNext,
+  listingPurposeDescription,
+  listingPurposeSuffix,
 } from "../lib/domain";
 test("money is represented and calculated using integer minor units", () => {
   assert.equal(toMinor("185000000.25"), 18500000025);
@@ -15,6 +17,13 @@ test("money is represented and calculated using integer minor units", () => {
   assert.throws(() => toMinor("1e8"));
   assert.throws(() => toMinor("1.999"));
   assert.throws(() => toMinor("-1"));
+});
+test("listing purposes use clear public price periods", () => {
+  assert.equal(listingPurposeDescription("sale"), "for sale");
+  assert.equal(listingPurposeDescription("rent"), "for rent");
+  assert.equal(listingPurposeDescription("short-let"), "for short let");
+  assert.equal(listingPurposeSuffix("rent"), " / year");
+  assert.equal(listingPurposeSuffix("short-let"), " / night");
 });
 test("a seller cannot jump from draft to published", () => {
   assert.equal(canTransition("draft", "live"), false);

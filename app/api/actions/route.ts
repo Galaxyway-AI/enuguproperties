@@ -106,6 +106,9 @@ export async function POST(request: NextRequest) {
         category: z
           .enum(["houses", "land", "commercial", "new-developments"])
           .parse(data.category),
+        listing_purpose: z
+          .enum(["sale", "rent", "short-let"])
+          .parse(data.listing_purpose || "sale"),
         location_id: uuid(data.location_id),
         property_type: z
           .string()

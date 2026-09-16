@@ -9,7 +9,9 @@ export const isDemo = () =>
   !configured();
 export type SearchFilters = {
   q?: string;
+  purpose?: string;
   category?: string;
+  property_type?: string;
   area?: string;
   min?: string;
   max?: string;
@@ -40,6 +42,12 @@ export async function getProperties(filters: SearchFilters = {}) {
       );
     if (filters.category)
       data = data.filter((p) => p.category === filters.category);
+    if (filters.purpose)
+      data = data.filter(
+        (p) => (p.listing_purpose || "sale") === filters.purpose,
+      );
+    if (filters.property_type)
+      data = data.filter((p) => p.property_type === filters.property_type);
     if (filters.area) data = data.filter((p) => p.area_slug === filters.area);
     const min = filterNumber(filters.min, 9_007_199_254_740);
     const max = filterNumber(filters.max, 9_007_199_254_740);
@@ -78,6 +86,9 @@ export async function getProperties(filters: SearchFilters = {}) {
       `%${filters.q.replace(/[%_]/g, "").slice(0, 100)}%`,
     );
   if (filters.category) query = query.eq("category", filters.category);
+  if (filters.purpose) query = query.eq("listing_purpose", filters.purpose);
+  if (filters.property_type)
+    query = query.eq("property_type", filters.property_type);
   if (filters.area) query = query.eq("area_slug", filters.area);
   const min = filterNumber(filters.min, 9_007_199_254_740);
   const max = filterNumber(filters.max, 9_007_199_254_740);

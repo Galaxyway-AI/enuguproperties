@@ -3,7 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SearchX } from "lucide-react";
 import { getAreas, getProperties, type SearchFilters } from "@/lib/catalogue";
-import { categories, categoryLabels, type Category } from "@/lib/domain";
+import {
+  categories,
+  categoryLabels,
+  listingPurposeLabels,
+  type Category,
+  type ListingPurpose,
+} from "@/lib/domain";
 import { SearchForm } from "@/components/search";
 import { PropertyCard } from "@/components/property-card";
 export const dynamic = "force-dynamic";
@@ -17,11 +23,14 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { category } = await params;
   const query = await searchParams;
+  const purpose = ["sale", "rent", "short-let"].includes(query.purpose || "")
+    ? (query.purpose as ListingPurpose)
+    : "sale";
   return {
     title:
       category?.[0] && categories.includes(category[0] as Category)
-        ? `${categoryLabels[category[0] as Category]} for sale in Enugu`
-        : "Property for sale in Enugu",
+        ? `${categoryLabels[category[0] as Category]} to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`
+        : `Property to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`,
     alternates: {
       canonical: `/properties${category?.length ? "/" + category.join("/") : ""}`,
     },
@@ -52,12 +61,17 @@ export default async function Properties({ params, searchParams }: Props) {
         : {}),
   };
   const result = await getProperties(filters);
+  const purpose = ["sale", "rent", "short-let"].includes(filters.purpose || "")
+    ? (filters.purpose as ListingPurpose)
+    : undefined;
   const title =
     category?.[0] === "featured"
       ? "Featured properties"
       : category?.[0]
-        ? `${categoryLabels[category[0] as Category]} for sale in Enugu`
-        : "Find your next chapter in Enugu.";
+        ? `${categoryLabels[category[0] as Category]} ${purpose ? listingPurposeLabels[purpose].toLowerCase() : "in Enugu"}`
+        : purpose
+          ? `${listingPurposeLabels[purpose]} property in Enugu.`
+          : "Find your next chapter in Enugu.";
   function pageLink(page: number) {
     const params = new URLSearchParams(
       Object.entries(filters).filter(([, v]) => v !== undefined) as [
@@ -80,7 +94,7 @@ export default async function Properties({ params, searchParams }: Props) {
           <span className="eyebrow">A PLACE FOR YOUR PLANS</span>
           <h1>{title}</h1>
           <p>
-            Search houses, land and commercial property. Read each listing’s
+            Search property for sale, rent and short lets. Read each listing’s
             verification details before taking your next step.
           </p>
         </div>

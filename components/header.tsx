@@ -22,10 +22,11 @@ export function Header() {
     return () => controller.abort();
   }, [pathname]);
   const links = [
-    ["/properties", "Find a property"],
+    ["/properties?purpose=sale", "Buy"],
+    ["/properties?purpose=rent", "Rent"],
+    ["/properties?purpose=short-let", "Short lets"],
     ["/areas", "Explore Enugu"],
     ["/verification", "Our verification"],
-    ["/buying-from-abroad", "Buying from abroad"],
   ];
   return (
     <header className="site-header">
@@ -54,14 +55,32 @@ export function Header() {
               {label}
             </Link>
           ))}
+          <div className="mobile-auth-actions">
+            {signedIn ? (
+              <Link onClick={() => setOpen(false)} className="button" href="/account/dashboard">
+                My account
+              </Link>
+            ) : (
+              <>
+                <Link onClick={() => setOpen(false)} className="button" href="/register">
+                  Register
+                </Link>
+                <Link onClick={() => setOpen(false)} className="button secondary" href="/login">
+                  Sign in
+                </Link>
+              </>
+            )}
+          </div>
         </nav>
         <div className="nav-actions">
-          <Link
-            className="login-link"
-            href={signedIn ? "/account/dashboard" : "/login"}
-          >
-            {signedIn ? "My account" : "Sign in"}
-          </Link>
+          {signedIn ? (
+            <Link className="login-link" href="/account/dashboard">My account</Link>
+          ) : (
+            <>
+              <Link className="login-link" href="/login">Sign in</Link>
+              <Link className="register-link" href="/register">Register</Link>
+            </>
+          )}
           <Link className="button small" href="/sell">
             List a property <ArrowUpRight size={16} />
           </Link>

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -10,9 +9,14 @@ import {
   FileCheck2,
   Users,
   Check,
+  Home as HomeIcon,
+  Building2,
+  Mountain,
+  Store,
+  CalendarDays,
+  KeyRound,
 } from "lucide-react";
 import { getAreas, getProperties, isDemo } from "@/lib/catalogue";
-import { heroImage } from "@/lib/demo";
 import { SearchForm } from "@/components/search";
 import { PropertyCard } from "@/components/property-card";
 import { business } from "@/lib/business";
@@ -40,70 +44,24 @@ export default async function Home() {
           }).replace(/</g, "\\u003c"),
         }}
       />
-      <section className="hero">
-        <div className="container hero-grid">
-          <div className="hero-copy">
-            <div className="eyebrow">
-              <span /> YOUR NEXT CHAPTER STARTS HERE
-            </div>
-            <h1>
-              Find property
-              <br />
-              in Enugu.
-              <br />
-              <em>With confidence.</em>
-            </h1>
-            <p>
-              A place to call home. Land to build a future.
-              <br className="desktop-only" /> Explore Enugu property with local
-              knowledge
-              <br className="desktop-only" /> and a clearer picture of what
-              you’re buying.
-            </p>
-            <div className="hero-links">
-              <Link href="/properties" className="text-link">
-                Explore properties <ArrowUpRight size={20} />
-              </Link>
-              <Link href="/how-it-works" className="subtle-link">
-                How it works
-              </Link>
-            </div>
-          </div>
-          <div className="hero-visual">
-            <Image
-              src={heroImage}
-              alt="Modern tropical home with a green lawn, illustrative architecture"
-              fill
-              priority
-              sizes="(max-width: 800px) 100vw, 55vw"
-            />
-            <div className="hero-photo-caption">
-              A little closer to your next chapter.
-            </div>
-            <div className="hero-trust-note">
-              <span className="trust-icon">
-                <ShieldCheck size={25} />
-              </span>
-              <div>
-                <strong>More clarity. Greater confidence.</strong>
-                <span>Know what’s been checked, and what hasn’t.</span>
-              </div>
-            </div>
-            <span className="image-credit">Illustrative photography</span>
-          </div>
-        </div>
-        <div className="container hero-search">
-          <SearchForm areas={areas} />
-          <div className="popular-searches">
-            <span>Popular searches</span>
-            <Link href="/properties?category=houses&area=independence-layout">
-              Homes in Independence Layout
+      <section className="marketplace-hero">
+        <div className="container marketplace-hero-inner">
+          <span className="marketplace-kicker">
+            <ShieldCheck size={15} /> Enugu’s local property marketplace
+          </span>
+          <h1>Find the right property in Enugu.</h1>
+          <p>
+            Search homes, land and commercial property to buy, rent or book for
+            a short stay.
+          </p>
+          <SearchForm areas={areas} hero />
+          <div className="marketplace-actions">
+            <span>Have a property?</span>
+            <Link className="button light" href="/register">
+              Register to advertise <ArrowUpRight size={18} />
             </Link>
-            <Link href="/properties?category=land&area=emene">
-              Land in Emene
-            </Link>
-            <Link href="/properties?category=houses&area=trans-ekulu">
-              Trans Ekulu
+            <Link className="marketplace-signin" href="/login">
+              Already registered? Sign in
             </Link>
           </div>
         </div>
@@ -125,6 +83,35 @@ export default async function Home() {
             <Users />
             <span>People behind the process</span>
           </div>
+        </div>
+      </section>
+      <section className="section container browse-types">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">BROWSE BY TYPE</span>
+            <h2>What kind of property are you looking for?</h2>
+            <p>Go straight to the search that matches your plans.</p>
+          </div>
+        </div>
+        <div className="type-card-grid">
+          {[
+            [HomeIcon, "Houses", "/properties/houses?purpose=sale", "Homes to buy"],
+            [Building2, "Flats & apartments", "/properties?purpose=rent&category=houses&property_type=flat", "Homes to rent"],
+            [Mountain, "Land & plots", "/properties/land?purpose=sale", "Land for sale"],
+            [Store, "Commercial", "/properties/commercial", "Business property"],
+            [CalendarDays, "Short lets", "/properties?purpose=short-let", "Book short stays"],
+            [KeyRound, "Rentals", "/properties?purpose=rent", "Browse rentals"],
+          ].map(([Icon, title, href, copy]) => {
+            const TypeIcon = Icon as typeof HomeIcon;
+            return (
+              <Link className="type-card" href={href as string} key={title as string}>
+                <span><TypeIcon size={26} /></span>
+                <h3>{title as string}</h3>
+                <p>{copy as string}</p>
+                <ArrowUpRight size={18} />
+              </Link>
+            );
+          })}
         </div>
       </section>
       <section className="section container">

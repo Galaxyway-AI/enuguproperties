@@ -1,30 +1,53 @@
-import { Search, MapPin, SlidersHorizontal } from "lucide-react";
+import {
+  Search,
+  MapPin,
+  SlidersHorizontal,
+  Tag,
+  KeyRound,
+  CalendarDays,
+} from "lucide-react";
 import type { SearchFilters } from "@/lib/catalogue";
 export function SearchForm({
   areas,
   filters = {},
   advanced = false,
+  hero = false,
 }: {
   areas: { name: string; slug: string }[];
   filters?: SearchFilters;
   advanced?: boolean;
+  hero?: boolean;
 }) {
+  const purpose = filters.purpose || "sale";
   return (
     <form
       action="/properties"
-      className={advanced ? "search-panel advanced" : "search-panel"}
+      className={`search-panel${advanced ? " advanced" : ""}${hero ? " marketplace-search" : ""}`}
     >
+      <fieldset className="purpose-tabs">
+        <legend className="sr-only">I want to</legend>
+        {[
+          ["sale", "Buy", Tag],
+          ["rent", "Rent", KeyRound],
+          ["short-let", "Short let", CalendarDays],
+        ].map(([value, label, Icon]) => {
+          const PurposeIcon = Icon as typeof Tag;
+          return (
+            <label key={value as string}>
+              <input
+                type="radio"
+                name="purpose"
+                value={value as string}
+                defaultChecked={purpose === value}
+              />
+              <span>
+                <PurposeIcon size={16} /> {label as string}
+              </span>
+            </label>
+          );
+        })}
+      </fieldset>
       <div className="search-main">
-        <label>
-          <span>Property type</span>
-          <select name="category" defaultValue={filters.category || ""}>
-            <option value="">All property types</option>
-            <option value="houses">Houses</option>
-            <option value="land">Land</option>
-            <option value="commercial">Commercial</option>
-            <option value="new-developments">New developments</option>
-          </select>
-        </label>
         <label>
           <span>
             <MapPin size={13} /> Location
@@ -39,6 +62,16 @@ export function SearchForm({
           </select>
         </label>
         <label>
+          <span>Property type</span>
+          <select name="category" defaultValue={filters.category || ""}>
+            <option value="">All property types</option>
+            <option value="houses">Houses &amp; apartments</option>
+            <option value="land">Land &amp; plots</option>
+            <option value="commercial">Commercial</option>
+            <option value="new-developments">New developments</option>
+          </select>
+        </label>
+        <label>
           <span>Maximum budget</span>
           <select name="max" defaultValue={filters.max || ""}>
             <option value="">Any price</option>
@@ -49,7 +82,7 @@ export function SearchForm({
             ))}
           </select>
         </label>
-        <button className="button search-button">
+        <button type="submit" className="button search-button">
           <Search size={19} /> Search properties
         </button>
       </div>
