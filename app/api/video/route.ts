@@ -24,6 +24,10 @@ const completeSchema = z.object({
   action: z.literal("complete"),
   id: z.uuid(),
 });
+const cancelSchema = z.object({
+  action: z.literal("cancel"),
+  id: z.uuid(),
+});
 
 type UploadRow = {
   id: string;
@@ -87,6 +91,21 @@ export async function POST(request: NextRequest) {
           `Your ${plan.name} plan accepts videos up to ${Math.floor(maximumBytes / 1_048_576)} MB.`,
         );
 
+      const abandoned = await serverQuery<Pick<UploadRow, "id" | "path">>(
+        "select id,path from public.video_uploads where property_id=$1 and owner_id=$2 and status='pending' order by created_at",
+        [input.property, user.id],
+      );
+      for (const upload of abandoned) {
+        if (upload.path.startsWith("stream:"))
+          await deleteVideo(upload.path.slice("stream:".length)).catch(
+            () => undefined,
+          );
+        await serverQuery(
+          "delete from public.video_uploads where id=$1 and owner_id=$2 and status='pending'",
+          [upload.id, user.id],
+        );
+      }
+
       const direct = await createVideoUpload({
         maxDurationSeconds: plan.video_seconds,
         expiry: new Date(Date.now() + 15 * 60_000).toISOString(),
@@ -105,6 +124,27 @@ export async function POST(request: NextRequest) {
         throw new HttpError(400, "The video upload could not be reserved.");
       streamIdToRemove = null;
       return Response.json({ id, uploadUrl: direct.uploadURL });
+    }
+
+    if (body?.action === "cancel") {
+      const input = cancelSchema.parse(body);
+      await rateLimit(`video-cancel:${user.id}`, 20, 600);
+      const rows = await serverQuery<Pick<UploadRow, "id" | "path" | "status">>(
+        "select id,path,status from public.video_uploads where id=$1 and owner_id=$2 limit 1",
+        [input.id, user.id],
+      );
+      const upload = rows[0];
+      if (!upload || upload.status !== "pending")
+        return Response.json({ message: "Video upload already cleared." });
+      if (upload.path.startsWith("stream:"))
+        await deleteVideo(upload.path.slice("stream:".length)).catch(
+          () => undefined,
+        );
+      await serverQuery(
+        "delete from public.video_uploads where id=$1 and owner_id=$2 and status='pending'",
+        [input.id, user.id],
+      );
+      return Response.json({ message: "Interrupted video upload cleared." });
     }
 
     const input = completeSchema.parse(body);

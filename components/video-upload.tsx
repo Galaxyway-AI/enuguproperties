@@ -6,6 +6,14 @@ import { useRouter } from "next/navigation";
 const wait = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
+async function cancelUpload(id: string) {
+  await fetch("/api/video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "cancel", id }),
+  }).catch(() => undefined);
+}
+
 export function VideoUpload({ property }: { property: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,14 +46,22 @@ export function VideoUpload({ property }: { property: string }) {
           setMessage("Uploading directly to the secure video service…");
           const uploadBody = new FormData();
           uploadBody.set("file", file);
-          const uploaded = await fetch(data.uploadUrl, {
-            method: "POST",
-            body: uploadBody,
-          });
-          if (!uploaded.ok)
+          let uploaded: Response;
+          try {
+            uploaded = await fetch(data.uploadUrl, {
+              method: "POST",
+              body: uploadBody,
+            });
+          } catch {
+            await cancelUpload(data.id);
+            throw new TypeError("Failed to fetch");
+          }
+          if (!uploaded.ok) {
+            await cancelUpload(data.id);
             throw new Error(
               "The video upload was interrupted or the file exceeded your plan limit. Please try again.",
             );
+          }
 
           setMessage("Processing the video for safe, reliable playback…");
           let result: {
