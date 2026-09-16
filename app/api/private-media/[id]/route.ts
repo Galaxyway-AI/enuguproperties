@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/supabase";
 import { getMedia } from "@/lib/storage";
+import { videoEmbedUrl } from "@/lib/stream";
 import { z } from "zod";
 export async function GET(
   _request: NextRequest,
@@ -18,6 +19,12 @@ export async function GET(
       .eq("id", z.uuid().parse((await params).id))
       .single();
     if (!m) return new Response("Not found", { status: 404 });
+    if (m.storage_path.startsWith("stream:")) {
+      const target = await videoEmbedUrl(
+        m.storage_path.slice("stream:".length),
+      );
+      return Response.redirect(target, 302);
+    }
     const object = await getMedia("property-media", m.storage_path);
     if (!object) return new Response("Not found", { status: 404 });
     return new Response(object.body, {

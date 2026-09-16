@@ -45,7 +45,11 @@ Cloudflare R2 uses separate private buckets for development and production. No p
 
 Photos are decoded in the browser, resized to 2400 px and rendered to WebP without source EXIF or XMP metadata. The Worker independently validates the WebP structure, dimensions, descriptive metadata flags and animation state before private storage; a bounded colour profile is retained for accurate display. Evidence accepts images or flat PDFs up to 12 MB. PDF active-feature rejection is a preliminary check, not a malware scanner; deploy malware scanning before accepting untrusted production documents at scale.
 
-Videos upload directly to a private quarantine bucket using a signed upload token. Server processing validates size, duration and H.264 content with ffprobe, strips metadata with ffmpeg and atomically enforces the plan allowance. Limits are 100 MB and the plan duration, default 120 seconds. Use a Node host with native binaries, adequate temporary storage, and a request/job duration of at least 180 seconds. This implementation is not compatible with an edge-only runtime.
+Paid-plan videos upload directly to Cloudflare Stream through a one-time creator
+upload URL. Stream validates the media, enforces the plan duration, transcodes it
+for browser playback and keeps it behind signed viewing tokens. PostgreSQL
+atomically enforces each plan's video count and the application limits source
+files to 100 MB.
 
 ## Payments and email testing
 

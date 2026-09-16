@@ -820,12 +820,18 @@ async function PropertyReview({
                   style={{ width: "100%", borderRadius: 8 }}
                 />
               ) : (
-                <video
+                <iframe
                   key={m.id}
                   src={`/api/private-media/${m.id}`}
-                  controls
-                  preload="none"
-                  style={{ width: "100%" }}
+                  title={m.alt || "Property video"}
+                  allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                  style={{
+                    width: "100%",
+                    aspectRatio: "16 / 9",
+                    border: 0,
+                  }}
                 />
               ),
             )}

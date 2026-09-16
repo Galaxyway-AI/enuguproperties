@@ -97,7 +97,8 @@ export default async function Property({
         <div>
           <div className="detail-title">
             <span className="eyebrow">
-              {p.category.replaceAll("-", " ")} {listingPurposeDescription(p.listing_purpose)} · {p.reference}
+              {p.category.replaceAll("-", " ")}{" "}
+              {listingPurposeDescription(p.listing_purpose)} · {p.reference}
             </span>
             <h1>{p.title}</h1>
             <p className="card-location">
@@ -137,12 +138,19 @@ export default async function Property({
               </>
             )}
             {p.videos?.map((v) => (
-              <video
+              <iframe
                 key={v}
                 src={v}
-                controls
-                preload="none"
-                style={{ width: "100%", borderRadius: 8 }}
+                title="Property video"
+                allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+                style={{
+                  width: "100%",
+                  aspectRatio: "16 / 9",
+                  border: 0,
+                  borderRadius: 8,
+                }}
                 aria-label="Property video"
               />
             ))}

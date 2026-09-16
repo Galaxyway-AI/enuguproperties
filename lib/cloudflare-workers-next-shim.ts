@@ -3,4 +3,5 @@
 export const env = {} as {
   MEDIA?: never;
   PRIVATE_MEDIA?: never;
+  STREAM?: never;
 };

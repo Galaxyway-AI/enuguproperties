@@ -1,7 +1,11 @@
 "use client";
-import { createBrowserClient } from "@supabase/ssr";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+const wait = (milliseconds: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
 export function VideoUpload({ property }: { property: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -10,9 +14,9 @@ export function VideoUpload({ property }: { property: string }) {
   return (
     <form
       className="stack-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const file = new FormData(e.currentTarget).get("file");
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const file = new FormData(event.currentTarget).get("file");
         if (!(file instanceof File)) return;
         setBusy(true);
         setError("");
@@ -25,36 +29,53 @@ export function VideoUpload({ property }: { property: string }) {
               action: "prepare",
               property,
               size: file.size,
+              name: file.name,
             }),
           });
           const data = await prepare.json();
           if (!prepare.ok) throw new Error(data.error);
-          const c = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-          );
-          setMessage("Uploading directly to private storage…");
-          const { error: uploadError } = await c.storage
-            .from("video-quarantine")
-            .uploadToSignedUrl(data.path, data.token, file, {
-              contentType: "video/mp4",
-            });
-          if (uploadError)
-            throw new Error(
-              "Upload interrupted. Please try again after the pending reservation expires.",
-            );
-          setMessage("Checking video content and removing metadata…");
-          const finish = await fetch("/api/video", {
+
+          setMessage("Uploading directly to the secure video service…");
+          const uploadBody = new FormData();
+          uploadBody.set("file", file);
+          const uploaded = await fetch(data.uploadUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "complete", id: data.id }),
+            body: uploadBody,
           });
-          const result = await finish.json();
-          if (!finish.ok) throw new Error(result.error);
-          setMessage(result.message);
+          if (!uploaded.ok)
+            throw new Error(
+              "The video upload was interrupted or the file exceeded your plan limit. Please try again.",
+            );
+
+          setMessage("Processing the video for safe, reliable playback…");
+          let result: {
+            error?: string;
+            message?: string;
+            processing?: boolean;
+          } = {};
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            const finish = await fetch("/api/video", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "complete", id: data.id }),
+            });
+            result = await finish.json();
+            if (!finish.ok && finish.status !== 202)
+              throw new Error(result.error || "Video processing failed.");
+            setMessage(result.message || "Processing video…");
+            if (!result.processing) break;
+            await wait(2_000);
+          }
+          if (result.processing)
+            throw new Error(
+              "The video is still processing. Wait a minute, then refresh this page.",
+            );
+          setMessage(result.message || "Video uploaded and ready for review.");
           router.refresh();
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "Video upload failed.");
+        } catch (problem) {
+          setError(
+            problem instanceof Error ? problem.message : "Video upload failed.",
+          );
         } finally {
           setBusy(false);
         }
@@ -62,11 +83,16 @@ export function VideoUpload({ property }: { property: string }) {
     >
       <label>
         Property video
-        <input name="file" type="file" accept="video/mp4" required />
+        <input
+          name="file"
+          type="file"
+          accept="video/mp4,video/quicktime,video/webm"
+          required
+        />
       </label>
       <p className="form-caption">
-        H.264 MP4, up to 100 MB and your plan’s duration limit. Videos go
-        directly to private storage before validation.
+        MP4, MOV or WebM, up to 100 MB and your plan’s duration limit. Videos
+        upload directly to Cloudflare for secure processing and playback.
       </p>
       {message && <p role="status">{message}</p>}
       {error && (

@@ -131,7 +131,8 @@ export default async function Listing({
                 {plans.map((plan) => (
                   <option key={plan.id} value={plan.id}>
                     {plan.name} · {money(plan.price_minor)} ·{" "}
-                    {plan.duration_days} days · {plan.photo_limit} photos
+                    {plan.duration_days} days · {plan.photo_limit} photos ·{" "}
+                    {plan.video_limit} videos
                   </option>
                 ))}
               </select>
@@ -158,9 +159,24 @@ export default async function Listing({
                     }}
                   />
                 )}
+                {m.kind === "video" && (
+                  <iframe
+                    src={`/api/private-media/${m.id}`}
+                    title={m.alt || "Property video"}
+                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    loading="lazy"
+                    style={{
+                      width: 240,
+                      aspectRatio: "16 / 9",
+                      border: 0,
+                      borderRadius: 5,
+                    }}
+                  />
+                )}
                 <div className="upload-row-content">
                   <span>
-                    {m.alt || "Property photograph"} · {m.kind}
+                    {m.alt || "Property media"} · {m.kind}
                   </span>
                   {m.kind === "image" && (editable || approved) && (
                     <MediaDeleteButton

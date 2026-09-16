@@ -91,7 +91,7 @@
         "FEATURE_LEGAL_DUE_DILIGENCE": "false",
         "FEATURE_SURVEY_REVIEW": "false",
         "FEATURE_MAPS": "false",
-        "FEATURE_VIDEO": "false",
+        "FEATURE_VIDEO": "true",
         "UK_DIASPORA_CONTACT_ENABLED": "true",
         "UK_DIASPORA_PHONE": "+447777243332",
         "SUPPORT_EMAIL": "support@enuguproperties.com",
@@ -111,6 +111,9 @@
           "bucket_name": "enugu-properties-private",
         },
       ],
+      "stream": {
+        "binding": "STREAM",
+      },
     },
   },
 }

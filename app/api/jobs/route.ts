@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { mailer } from "@/lib/email";
 import { serverQuery } from "@/lib/server-db";
 import { deleteMedia } from "@/lib/storage";
+import { deleteVideo } from "@/lib/stream";
 export async function POST(request: NextRequest) {
   const expected = process.env.CRON_SECRET;
   const token =
@@ -27,7 +28,11 @@ export async function POST(request: NextRequest) {
         "select id,path from public.video_uploads where status in ('pending','failed') and created_at < now()-interval '2 hours' order by created_at limit 50",
       );
       for (const item of stale) {
-        await deleteMedia("video-quarantine", item.path);
+        if (item.path.startsWith("stream:"))
+          await deleteVideo(item.path.slice("stream:".length)).catch(
+            () => undefined,
+          );
+        else await deleteMedia("video-quarantine", item.path);
         await serverQuery("delete from public.video_uploads where id=$1", [
           item.id,
         ]);
