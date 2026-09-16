@@ -2,7 +2,7 @@
 
 ## Before a beta seller starts
 
-Confirm `BETA_MODE=true`, staging noindex headers, Paystack test mode, a legally approved test agreement, staff MFA, working email/Turnstile/R2, recent maintenance success and no aged quarantine backlog. Mark the account as a beta participant and state whether its records are test or genuine beta data.
+Confirm `BETA_MODE=true`, staging noindex headers, Kora test mode, a legally approved test agreement, staff MFA, working email/Turnstile/R2, recent maintenance success and no aged quarantine backlog. Mark the account as a beta participant and state whether its records are test or genuine beta data.
 
 ## Registration and submission
 

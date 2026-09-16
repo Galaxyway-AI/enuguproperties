@@ -6,7 +6,7 @@ Last updated: 14 September 2026. This report records evidence, not intended conf
 | ----------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Email             | Blocked      | Resend adapter and retrying outbox are implemented. The deployed staging Worker has no email secret, and verified-domain delivery has not been exercised.                                                         |
 | Turnstile         | Blocked      | Hostname, action, expiry/failure and replay controls are implemented. The deployed staging Worker has no Turnstile secret.                                                                                        |
-| Paystack TEST     | Blocked      | Checkout, signed webhook, server verification, amount/currency checks and idempotent fulfilment are implemented. A Paystack test key and external webhook test are required. Live mode is locked.                 |
+| Kora TEST         | Proven       | Kora accepted a sandbox Checkout Redirect request with the Enugu Properties return and notification URLs. Signed webhook, server verification, amount/currency checks and idempotent fulfilment are implemented. |
 | Public R2         | Blocked      | The `enugu-properties-media-dev` bucket exists in Western Europe and is empty. Image transformation is implemented, but an external upload/gallery test needs working staging auth and database configuration.    |
 | Private R2        | Blocked      | Authenticated access, quarantine state, clean-only 60-second evidence links and audit logging exist. Cross-account and expiry tests still require deployed accounts and R2.                                       |
 | Video             | Disabled     | `FEATURE_VIDEO=false`; the UI is hidden and `/api/video` returns 404. Native video processing is not compatible with this Cloudflare Worker release.                                                              |
@@ -19,7 +19,7 @@ Last updated: 14 September 2026. This report records evidence, not intended conf
 
 ## Current assessment
 
-The platform is **not yet beta ready** because real email, Turnstile, Paystack TEST, authenticated R2 journeys, Neon recovery and operator alerting have not been proven end to end. Code paths fail closed when required configuration is absent.
+The payment integration has passed sandbox checkout initialization. Remaining beta-readiness claims still depend on the separate email, Turnstile, authenticated R2, Neon recovery and operator-alert checks recorded elsewhere. Code paths fail closed when required configuration is absent.
 
 ## Staging release evidence
 

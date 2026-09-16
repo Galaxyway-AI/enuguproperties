@@ -221,7 +221,7 @@ export default async function Listing({
             <ActionForm
               action="checkout"
               extra={{ id }}
-              label="Open secure advertising checkout"
+              label="Pay securely with Kora"
             />
           )}
           {p.plan_id !== "free" && !features.paidListings && (

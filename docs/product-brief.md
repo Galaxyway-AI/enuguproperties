@@ -383,7 +383,7 @@ Abstract storage sufficiently so that migration remains possible.
 
 ## Payment
 
-Use **Paystack** as the initial payment provider for:
+Use **Kora** as the initial payment provider for:
 
 * Plus listings;
 * Premium listings;
@@ -431,9 +431,9 @@ Examples:
 * Supabase URL
 * Supabase anon key
 * service role credentials where legitimately required
-* Paystack public key
-* Paystack secret key
-* Paystack webhook secret/configuration
+* Kora public key
+* Kora secret key
+* Kora webhook signature/configuration
 * email API key
 * Turnstile key
 * map API key
@@ -1290,7 +1290,7 @@ Featured status must clearly mean promotional positioning, NOT verification.
 
 # 30. PAYMENT IMPLEMENTATION
 
-Use Paystack initially.
+Use Kora Checkout Redirect for server-initiated advertising payments.
 
 Payments are currently for:
 
@@ -1334,7 +1334,7 @@ refunded
 partially_refunded
 ```
 
-Use Paystack test mode during development.
+Use Kora test mode during development.
 
 Never embed live secret keys.
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { verifyPaymentSignature } from "./payment-signature";
+import { verifyKoraPaymentSignature, paymentAmountToMinor } from "./payment-signature";
 import { appUrl } from "./business";
 export interface PaymentProvider {
   initialise(order: {
@@ -15,20 +15,26 @@ export interface PaymentProvider {
     reference: string;
   }>;
 }
+function mode() {
+  const value = process.env.KORAPAY_MODE || "test";
+  if (!["test", "live"].includes(value)) throw new Error("Invalid Kora mode.");
+  return value;
+}
+
 function key() {
-  const value = process.env.PAYSTACK_SECRET_KEY;
+  const value = process.env.KORAPAY_SECRET_KEY;
   if (!value) throw new Error("Payments have not been configured.");
-  const mode = process.env.PAYSTACK_MODE || "test";
-  if (mode === "test" && !value.startsWith("sk_test_"))
-    throw new Error("Paystack test mode requires a test secret key.");
-  if (mode === "live" && process.env.ALLOW_PAYSTACK_LIVE !== "true")
-    throw new Error("Paystack live mode is locked for controlled beta.");
-  if (!["test", "live"].includes(mode))
-    throw new Error("Invalid Paystack mode.");
+  const environment = mode();
+  if (environment === "test" && !value.startsWith("sk_test_"))
+    throw new Error("Kora test mode requires a test secret key.");
+  if (environment === "live" && !value.startsWith("sk_live_"))
+    throw new Error("Kora live mode requires a live secret key.");
+  if (environment === "live" && process.env.ALLOW_KORAPAY_LIVE !== "true")
+    throw new Error("Kora live mode is locked until explicitly enabled.");
   return value;
 }
 async function api(path: string, body?: unknown) {
-  const r = await fetch(`https://api.paystack.co${path}`, {
+  const r = await fetch(`https://api.korapay.com${path}`, {
     method: body ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${key()}`,
@@ -42,34 +48,42 @@ async function api(path: string, body?: unknown) {
   if (!r.ok || !data.status) throw new Error("Payment provider unavailable.");
   return data.data;
 }
-export const paystack: PaymentProvider = {
+export const kora: PaymentProvider = {
   async initialise(order) {
-    const data = await api("/transaction/initialize", {
+    if (!Number.isSafeInteger(order.amount_minor) || order.amount_minor <= 0)
+      throw new Error("Invalid checkout amount.");
+    const data = await api("/merchant/api/v1/charges/initialize", {
       reference: order.reference,
-      amount: order.amount_minor,
+      amount: order.amount_minor / 100,
       currency: "NGN",
-      email: order.email,
-      callback_url: appUrl("/account/billing"),
+      customer: { email: order.email },
+      narration: `Enugu Properties advertising · ${order.reference}`,
+      notification_url: appUrl("/api/payments/webhook"),
+      redirect_url: appUrl("/api/payments/return"),
+      metadata: { purpose: "listing" },
     });
-    const url = new URL(data.authorization_url);
-    if (url.protocol !== "https:" || url.hostname !== "checkout.paystack.com")
+    const url = new URL(data.checkout_url);
+    const checkoutHost =
+      mode() === "live"
+        ? "checkout.korapay.com"
+        : "test-checkout.korapay.com";
+    if (url.protocol !== "https:" || url.hostname !== checkoutHost)
       throw new Error("Invalid checkout destination.");
     return url.toString();
   },
   async verify(reference) {
     const data = await api(
-      `/transaction/verify/${encodeURIComponent(reference)}`,
+      `/merchant/api/v1/charges/${encodeURIComponent(reference)}`,
     );
     return {
-      id: String(data.id),
-      amount: data.amount,
-      currency: data.currency,
-      status: data.status,
-      reference: data.reference,
+      id: String(data.transaction_reference || data.reference),
+      amount: paymentAmountToMinor(data.amount_paid ?? data.amount),
+      currency: String(data.currency || ""),
+      status: String(data.status || ""),
+      reference: String(data.payment_reference || data.reference || ""),
     };
   },
 };
-export function validWebhook(raw: string, signature: string | null) {
-  if (!signature || !/^[a-f0-9]{128}$/i.test(signature)) return false;
-  return verifyPaymentSignature(raw, signature, key());
+export function validKoraWebhook(data: unknown, signature: string | null) {
+  return verifyKoraPaymentSignature(data, signature, key());
 }

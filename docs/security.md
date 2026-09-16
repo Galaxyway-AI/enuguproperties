@@ -14,7 +14,7 @@ Buckets stay private. Private document lookup runs with the user's RLS context b
 
 Cookie sessions are validated with Neon Auth and Data API JWTs feed the existing PostgreSQL RLS policies. Mutations check the configured Origin. Server inputs use Zod and database constraints. Rich text is rendered as text rather than injected HTML. CSP restricts script/frame sources; object embedding and framing are disabled. Persistent database rate limits protect auth and mutations; production public forms additionally require Turnstile. Staff access requires MFA. Logs omit request contents, private files and credentials.
 
-Paystack webhooks use timing-safe HMAC-SHA512 checks and an independent server-side verification request. Amount, currency, reference and provider ID are matched under lock; duplicate delivery cannot issue a second fulfilment. A redirect is never proof of payment.
+Kora webhooks use timing-safe HMAC-SHA256 checks over the event data object and an independent server-side verification request. Amount, currency, reference and provider ID are matched under lock; duplicate delivery cannot issue a second fulfilment. A redirect is never proof of payment.
 
 ## Required staging checks
 

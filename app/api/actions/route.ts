@@ -14,7 +14,7 @@ import {
   databaseActionErrorMessage,
 } from "@/lib/security";
 import { toMinor } from "@/lib/domain";
-import { paystack } from "@/lib/payments";
+import { kora } from "@/lib/payments";
 import { mailer } from "@/lib/email";
 const uuid = (v: unknown) => z.uuid().parse(v);
 const text = (v: unknown, min = 1, max = 5000, label = "This field") => {
@@ -212,10 +212,10 @@ export async function POST(request: NextRequest) {
           503,
           "Paid advertising plans are launching shortly.",
         );
-      if (!process.env.PAYSTACK_SECRET_KEY)
+      if (!process.env.KORAPAY_SECRET_KEY)
         throw new HttpError(503, "Advertising checkout is not available yet.");
       const order = await rpc("create_order", { p_property: uuid(body.id) });
-      const url = await paystack.initialise({
+      const url = await kora.initialise({
         reference: order.reference,
         amount_minor: order.amount_minor,
         email: user.email!,

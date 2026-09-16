@@ -32,7 +32,7 @@ All keys and contact placeholders are in `.env.example`:
 - `NEXT_PUBLIC_APP_URL`: exact public origin, also used for CSRF and auth redirects.
 - `DATABASE_URL`: private PostgreSQL connection used only by migration and administrative scripts.
 - Neon Auth and Data API URLs: branch-specific endpoints. The cookie secret and database connection stay server-side.
-- `PAYSTACK_SECRET_KEY`: test secret during development. No payment is initiated when absent. Paystack uses this same secret for HMAC webhook verification; there is no invented separate webhook secret.
+- `KORAPAY_SECRET_KEY`: test secret during development. No payment is initiated when absent. Kora uses this same secret for HMAC webhook verification; there is no invented separate webhook secret.
 - `EMAIL_API_KEY`, `EMAIL_FROM`: Resend adapter for notification delivery. Neon Auth email uses its separately configured provider.
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`: bot protection. Public production forms fail closed if missing.
 - `CRON_SECRET`: random, high-entropy bearer secret for maintenance and the email outbox.
@@ -49,7 +49,7 @@ Videos upload directly to a private quarantine bucket using a signed upload toke
 
 ## Payments and email testing
 
-Use a Paystack test secret and configure `/api/payments/webhook` at an externally reachable staging origin. Initialise an advertising order from an owned draft. Verify a test charge, a duplicate webhook, an invalid signature, wrong currency and wrong amount. Returning from checkout alone must never mark an order paid or publish a property.
+Use a Kora test secret and pass `/api/payments/webhook` as the per-checkout notification URL. Initialise an advertising order from an owned draft. Verify a test charge, a duplicate webhook, an invalid signature, wrong currency and wrong amount. Returning from checkout triggers an independent server verification; the browser redirect alone never marks an order paid or publishes a property.
 
 Call `POST /api/jobs` with `Authorization: Bearer <CRON_SECRET>` from a Cloudflare Cron Trigger every five minutes. It expires listings/checks, cleans old video reservations and retries notification email. The email adapter uses a stable provider idempotency key. Validate sender authentication and delivery in staging. No emails were sent as part of local development.
 
@@ -63,7 +63,7 @@ npm run build
 node scripts/smoke.mjs # while the local server runs
 ```
 
-Tests run PostgreSQL in PGlite with a test-only Auth schema, roles and claims. They execute real migrations and RLS policies; they do not replace a staging test against Neon Auth/Data API, R2 and Paystack. Browser checks cover desktop/mobile public navigation, filters, gallery and setup gates. [Release status](docs/progress.md) records what was and was not verified.
+Tests run PostgreSQL in PGlite with a test-only Auth schema, roles and claims. They execute real migrations and RLS policies; they do not replace a staging test against Neon Auth/Data API, R2 and Kora. Browser checks cover desktop/mobile public navigation, filters, gallery and setup gates. [Release status](docs/progress.md) records what was and was not verified.
 
 ## Deployment
 

@@ -21,11 +21,14 @@ const sections = [
 ];
 export default async function AccountSection({
   params,
+  searchParams,
 }: {
   params: Promise<{ section: string }>;
+  searchParams: Promise<{ payment?: string }>;
 }) {
   if (!configured()) return null;
   const { section } = await params;
+  const query = await searchParams;
   if (!sections.includes(section)) notFound();
   const c = await db();
   const user = await currentUser();
@@ -287,6 +290,23 @@ export default async function AccountSection({
   return (
     <>
       <h1>{section[0].toUpperCase() + section.slice(1)}</h1>
+      {section === "billing" && query.payment === "success" && (
+        <div className="notice success" role="status">
+          Payment confirmed. Your advertising order is now paid.
+        </div>
+      )}
+      {section === "billing" && query.payment === "pending" && (
+        <div className="notice" role="status">
+          Kora is still confirming this payment. This page will show the paid
+          order after confirmation; you do not need to pay again.
+        </div>
+      )}
+      {section === "billing" && query.payment === "failed" && (
+        <div className="notice error" role="alert">
+          Kora did not confirm the payment. No advertising upgrade has been
+          applied. You can return to the listing and try again.
+        </div>
+      )}
       <p>
         Your most recent records. Private information is visible only to
         authorised participants.

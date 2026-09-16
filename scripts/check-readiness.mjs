@@ -12,8 +12,8 @@ const checks = [
   ["Turnstile site key", "NEXT_PUBLIC_TURNSTILE_SITE_KEY", Boolean],
   ["Turnstile secret", "TURNSTILE_SECRET_KEY", Boolean],
   [
-    "Paystack test secret",
-    "PAYSTACK_SECRET_KEY",
+    "Kora test secret",
+    "KORAPAY_SECRET_KEY",
     (v) => v.startsWith("sk_test_"),
   ],
   ["Maintenance secret", "CRON_SECRET", (v) => v.length >= 24],
@@ -25,8 +25,8 @@ const results = checks.map(([name, key, validate]) => {
   return { name, key, ready: Boolean(validate(value)) };
 });
 const productionGuards = {
-  paystackMode: (process.env.PAYSTACK_MODE || "test") === "test",
-  liveOverrideDisabled: process.env.ALLOW_PAYSTACK_LIVE !== "true",
+  koraMode: (process.env.KORAPAY_MODE || "test") === "test",
+  liveOverrideDisabled: process.env.ALLOW_KORAPAY_LIVE !== "true",
   previewNoindex: process.env.PREVIEW_MODE === "true",
   betaMode: process.env.BETA_MODE === "true",
 };

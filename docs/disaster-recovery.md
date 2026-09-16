@@ -25,7 +25,7 @@ Revoke the old credential at its provider, add the replacement through Cloudflar
 
 ## Payment webhook failure
 
-Keep orders pending. Restore webhook delivery, validate signatures and query Paystack server-side before replaying. Database fulfilment is idempotent. Reconcile reference, amount and NGN currency before changing any order state.
+Keep orders pending. Restore webhook delivery, validate signatures and query Kora server-side before replaying. Database fulfilment is idempotent. Reconcile reference, amount and NGN currency before changing any order state.
 
 ## Email provider failure
 
