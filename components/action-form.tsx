@@ -52,8 +52,12 @@ export function ActionForm({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action, ...extra, data: fields, token }),
           });
-          const result = await r.json();
-          if (!r.ok) throw new Error(result.error);
+          const result = await r.json().catch(() => ({}));
+          if (!r.ok)
+            throw new Error(
+              result.error ||
+                `The request could not be completed (${r.status}). Please reload the page and try again.`,
+            );
           if (result.url) window.location.href = result.url;
           else {
             setMessage(result.message || "Your changes have been saved.");

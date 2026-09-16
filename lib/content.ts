@@ -130,7 +130,7 @@ export const content: Record<
       },
       {
         title: "For sellers · Create and submit",
-        body: "Create an account, complete your profile and add your property. Upload photographs and private evidence, choose an advertising plan and accept the applicable seller agreement. Submit the listing for review.",
+        body: "Create an account, complete your profile and add your property. Upload photographs, choose an advertising plan and accept the applicable seller agreement. Private ownership or authority evidence is optional at this stage. Submit the completed listing for review.",
       },
       {
         title: "For sellers · Review and publication",
@@ -180,7 +180,7 @@ export const content: Record<
       },
       {
         title: "Share evidence privately",
-        body: "Provide available ownership or authority-to-market evidence. Private documents are stored separately from listing photographs. Uploading a document does not mean it has been verified.",
+        body: "Ownership or authority-to-market evidence is optional when you first list. You may add documents you already have, and staff may request evidence later when needed. Private documents are stored separately from photographs. Uploading a document does not mean it has been verified.",
       },
       {
         title: "Choose your advertising plan",

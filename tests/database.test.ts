@@ -20,6 +20,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0007_beta_operations.sql",
     "0012_registration_activation.sql",
     "0013_staff_access.sql",
+    "0014_listing_usability.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -324,6 +325,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
           `select public.attach_upload($1,$2,$3,'image',null,'Photo','image/webp',100,'hash')`,
           [property, seller, path + "excess"],
         ),
+        /maximum of 4 photographs/,
       );
     },
   );
@@ -342,6 +344,69 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       `insert into public.agreement_versions(kind,version,content,sha256,legal_approved,active) values('seller','test-only','Test agreement only','testhash',true,true) returning id`,
     )
   ).rows[0].id;
+  await t.test(
+    "private evidence is optional and draft photographs can be replaced",
+    async () => {
+      await as(seller);
+      const optionalEvidenceProperty = (
+        await sql.query<{ id: string }>(
+          "select public.save_property(null,$1::jsonb) id",
+          [
+            JSON.stringify({
+              ...payload,
+              title: "Listing without private evidence",
+            }),
+          ],
+        )
+      ).rows[0].id;
+      await as("", "aal1", "service_role");
+      const uploaded = (
+        await sql.query<{ id: string }>(
+          `select public.attach_upload($1,$2,$3,'image',null,'First photo','image/webp',100,'optional-hash') id`,
+          [
+            optionalEvidenceProperty,
+            seller,
+            `${seller}/${optionalEvidenceProperty}/first.webp`,
+          ],
+        )
+      ).rows[0].id;
+      await sql.query("select * from public.delete_property_media($1,$2)", [
+        uploaded,
+        seller,
+      ]);
+      assert.equal(
+        (
+          await sql.query(
+            "select id from public.property_media where property_id=$1",
+            [optionalEvidenceProperty],
+          )
+        ).rows.length,
+        0,
+      );
+      await sql.query(
+        `select public.attach_upload($1,$2,$3,'image',null,'Replacement photo','image/webp',100,'replacement-hash')`,
+        [
+          optionalEvidenceProperty,
+          seller,
+          `${seller}/${optionalEvidenceProperty}/replacement.webp`,
+        ],
+      );
+      await as(seller);
+      await sql.query("select public.submit_property($1,$2)", [
+        optionalEvidenceProperty,
+        agreement,
+      ]);
+      assert.equal(
+        (
+          await sql.query<{ status: string }>(
+            "select status from public.properties where id=$1",
+            [optionalEvidenceProperty],
+          )
+        ).rows[0].status,
+        "submitted",
+      );
+    },
+  );
   await as(seller);
   await sql.query("select public.submit_property($1,$2)", [
     property,
@@ -361,6 +426,32 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       );
     },
   );
+  await t.test("an admin can pause their own approved listing", async () => {
+    await as("", "aal1", "service_role");
+    await sql.exec(
+      `insert into public.user_roles(user_id,role_id) values('${seller}','super_admin') on conflict do nothing;
+       insert into public.staff_mfa_exemptions(user_id,reason) values('${seller}','Test admin') on conflict do nothing;`,
+    );
+    await as(seller);
+    await sql.query(
+      "select public.moderate_property($1,'paused','Temporarily removed by the listing administrator')",
+      [property],
+    );
+    assert.equal(
+      (
+        await sql.query<{ status: string }>(
+          "select status from public.properties where id=$1",
+          [property],
+        )
+      ).rows[0].status,
+      "paused",
+    );
+    await as("", "aal1", "service_role");
+    await sql.query(
+      "update public.properties set status='live',expires_at=now()+interval '30 days' where id=$1",
+      [property],
+    );
+  });
   await t.test(
     "public projection excludes precise location and account identity",
     async () => {
@@ -406,7 +497,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     },
   );
   await t.test(
-    "material edit preserves revision, withdraws public listing and expires checks",
+    "material edit creates an editable revision and expires checks",
     async () => {
       await as(staff, "aal2");
       await sql.query(
@@ -425,7 +516,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
             [property],
           )
         ).rows[0].status,
-        "under_review",
+        "needs_changes",
       );
       await as(staff, "aal2");
       assert.equal(

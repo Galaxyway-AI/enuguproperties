@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { NextRequest } from "next/server";
 import { serverQuery } from "./server-db";
 import { validTurnstileResult, type TurnstileResult } from "./turnstile";
+import type { z } from "zod";
 export class HttpError extends Error {
   constructor(
     public status: number,
@@ -10,6 +11,46 @@ export class HttpError extends Error {
   ) {
     super(message);
   }
+}
+
+export function validationErrorMessage(error: z.ZodError) {
+  const issue = error.issues[0];
+  if (!issue) return "Check the highlighted information and try again.";
+  const field = issue.path.length
+    ? `${String(issue.path.at(-1)).replaceAll("_", " ")} `
+    : "This field ";
+  if (issue.code === "too_small")
+    return `${field}must contain at least ${issue.minimum} ${issue.origin === "string" ? "characters" : "items"}.`;
+  if (issue.code === "too_big")
+    return `${field}must contain no more than ${issue.maximum} ${issue.origin === "string" ? "characters" : "items"}.`;
+  if (issue.code === "invalid_format" && issue.format === "email")
+    return "Enter a complete email address, for example name@example.com.";
+  if (issue.code === "invalid_format" && issue.format === "uuid")
+    return "Choose a valid record and try again.";
+  if (issue.code === "invalid_value")
+    return `${field}contains an option that is not available.`;
+  return issue.message || "Check the highlighted information and try again.";
+}
+
+export function databaseErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) return null;
+  const message = error.message;
+  const known = [
+    "maximum of",
+    "photograph",
+    "Photos can only",
+    "Photographs are locked",
+    "your own listing",
+    "Listing not found",
+    "document category",
+    "private documents",
+    "active to upload",
+  ];
+  return known.some((part) =>
+    message.toLowerCase().includes(part.toLowerCase()),
+  )
+    ? message
+    : null;
 }
 export function sameOrigin(request: NextRequest) {
   const expected = new URL(

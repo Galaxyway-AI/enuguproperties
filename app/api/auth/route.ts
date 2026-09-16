@@ -8,6 +8,7 @@ import {
   checkBot,
   errorResponse,
   HttpError,
+  validationErrorMessage,
 } from "@/lib/security";
 import { appUrl, features } from "@/lib/business";
 import { serverQuery } from "@/lib/server-db";
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
       if (error)
         throw new HttpError(
           400,
-          "Registration could not be completed. Check your details or try account recovery.",
+          friendlyRegistrationError(error.message || ""),
         );
       const userId = data?.user?.id;
       if (!userId)
@@ -82,12 +83,10 @@ export async function POST(request: NextRequest) {
           503,
           "Your account could not be prepared. Please contact support before trying again.",
         );
-      await serverQuery("select app_private.complete_registration($1,$2,$3,$4)", [
-        userId,
-        name,
-        phone,
-        sellerType,
-      ]);
+      await serverQuery(
+        "select app_private.complete_registration($1,$2,$3,$4)",
+        [userId, name, phone, sellerType],
+      );
       return Response.json({
         message: "Check your email for a confirmation link before signing in.",
       });
@@ -110,7 +109,21 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: true });
   } catch (e) {
     if (e instanceof z.ZodError)
-      return Response.json({ error: e.issues[0].message }, { status: 400 });
+      return Response.json(
+        { error: validationErrorMessage(e) },
+        { status: 400 },
+      );
     return errorResponse(e);
   }
+}
+
+function friendlyRegistrationError(message: string) {
+  const value = message.toLowerCase();
+  if (value.includes("already") || value.includes("exist"))
+    return "An account already uses this email address. Sign in or use account recovery.";
+  if (value.includes("email"))
+    return "Enter a valid email address that you can open to confirm your account.";
+  if (value.includes("password"))
+    return "Choose a password containing at least 12 characters.";
+  return "We could not create the account. Check each field, or use account recovery if you have registered before.";
 }

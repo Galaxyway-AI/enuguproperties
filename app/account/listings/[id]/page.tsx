@@ -7,6 +7,7 @@ import { money } from "@/lib/domain";
 import { ActionForm } from "@/components/action-form";
 import { UploadForm } from "@/components/upload-form";
 import { VideoUpload } from "@/components/video-upload";
+import { MediaDeleteButton } from "@/components/media-delete-button";
 import { features } from "@/lib/business";
 export default async function Listing({
   params,
@@ -25,43 +26,51 @@ export default async function Listing({
     .eq("seller_id", user!.id)
     .maybeSingle();
   if (!p) notFound();
-  const [plans, docs, media, types, agreement, reviews] = await Promise.all([
-    getPlans(),
-    client
-      .from("property_documents")
-      .select("id,original_name,type_id")
-      .eq("property_id", id),
-    client.from("property_media").select("id,alt,kind").eq("property_id", id),
-    client.from("document_types").select("*"),
-    client
-      .from("agreement_versions")
-      .select("id,version,content")
-      .eq("kind", "seller")
-      .eq("active", true)
-      .eq("legal_approved", true)
-      .limit(1)
-      .maybeSingle(),
-    client
-      .from("moderation_reviews")
-      .select("decision,reason,created_at")
-      .eq("property_id", id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [plans, docs, media, types, agreement, reviews, profile] =
+    await Promise.all([
+      getPlans(),
+      client
+        .from("property_documents")
+        .select("id,original_name,type_id")
+        .eq("property_id", id),
+      client.from("property_media").select("id,alt,kind").eq("property_id", id),
+      client.from("document_types").select("*"),
+      client
+        .from("agreement_versions")
+        .select("id,version,content")
+        .eq("kind", "seller")
+        .eq("active", true)
+        .eq("legal_approved", true)
+        .limit(1)
+        .maybeSingle(),
+      client
+        .from("moderation_reviews")
+        .select("decision,reason,created_at")
+        .eq("property_id", id)
+        .order("created_at", { ascending: false }),
+      client
+        .from("profiles")
+        .select("full_name,phone")
+        .eq("id", user.id)
+        .maybeSingle(),
+    ]);
+  const selectedPlan = plans.find((plan) => plan.id === p.plan_id);
+  const imageCount =
+    media.data?.filter((item) => item.kind === "image").length || 0;
+  const editable = ["draft", "needs_changes"].includes(p.status);
+  const approved = ["live", "paused", "under_offer"].includes(p.status);
+  const reviewLocked = ["submitted", "under_review"].includes(p.status);
   const submissionBlockers = [
+    ...(profile.data?.full_name?.trim().length > 1 &&
+    profile.data?.phone?.trim().length > 5
+      ? []
+      : ["Add your full name and phone number on the Profile page."]),
     ...(p.description?.trim().length >= 50
       ? []
       : ["Expand the property description to at least 50 characters."]),
     ...(media.data?.some((item) => item.kind === "image")
       ? []
       : ["Upload at least one property photograph."]),
-    ...(docs.data?.some((document) =>
-      types.data?.some(
-        (type) =>
-          type.id === document.type_id && type.classification === "property",
-      ),
-    )
-      ? []
-      : ["Upload ownership or authority evidence in a property category."]),
   ];
   return (
     <>
@@ -71,13 +80,41 @@ export default async function Listing({
           <h1>{p.title}</h1>
           <span className="status">{p.status.replaceAll("_", " ")}</span>
         </div>
-        <Link
-          className="button secondary"
-          href={`/account/listings/${id}/edit`}
-        >
-          Edit details
-        </Link>
+        {editable ? (
+          <Link
+            className="button secondary"
+            href={`/account/listings/${id}/edit`}
+          >
+            Edit details
+          </Link>
+        ) : approved ? (
+          <ActionForm
+            action="begin-listing-revision"
+            extra={{ id }}
+            label="Edit approved listing"
+          />
+        ) : null}
       </div>
+      {reviewLocked && (
+        <div className="notice" role="status">
+          <strong>This listing is locked while staff review it.</strong>
+          <p>
+            Check every detail and photograph before submitting. If you make
+            changes after approval, the revised listing must be submitted and
+            approved again before it returns to the live marketplace.
+          </p>
+        </div>
+      )}
+      {(editable || approved) && (
+        <div className="notice" role="status">
+          <strong>Prepare everything before you submit.</strong>
+          <p>
+            You may change details and photographs while preparing this version.
+            Submission locks editing until staff complete their review. Changes
+            to an approved listing also require a fresh review.
+          </p>
+        </div>
+      )}
       {reviews.data?.map((r) => (
         <div key={r.created_at} className="notice">
           <strong>{r.decision.replaceAll("_", " ")}</strong>
@@ -121,13 +158,28 @@ export default async function Listing({
                     }}
                   />
                 )}
-                {m.alt || "Property photograph"} · {m.kind}
+                <div className="upload-row-content">
+                  <span>
+                    {m.alt || "Property photograph"} · {m.kind}
+                  </span>
+                  {m.kind === "image" && (editable || approved) && (
+                    <MediaDeleteButton
+                      id={m.id}
+                      name={m.alt || "this photograph"}
+                    />
+                  )}
+                </div>
               </div>
             ))}
           </div>
-          {["draft", "needs_changes"].includes(p.status) && (
+          {(editable || approved) && (
             <>
-              <UploadForm property={id} kind="image" />
+              <UploadForm
+                property={id}
+                kind="image"
+                currentCount={imageCount}
+                limit={selectedPlan?.photo_limit}
+              />
               {features.video && p.plan_id !== "free" && (
                 <VideoUpload property={id} />
               )}
@@ -136,8 +188,13 @@ export default async function Listing({
         </section>
         <section className="panel">
           <h2 style={{ fontSize: 24 }}>
-            3. Private ownership and authority evidence
+            3. Private ownership and authority evidence (optional)
           </h2>
+          <p>
+            You can submit your listing without documents. Add any evidence you
+            already have if you would like the team to review it privately.
+            Staff may request evidence later when it is needed.
+          </p>
           <div className="upload-list">
             {docs.data?.map((d) => (
               <div className="upload-row" key={d.id}>
@@ -150,7 +207,7 @@ export default async function Listing({
               </div>
             ))}
           </div>
-          {["draft", "needs_changes"].includes(p.status) && (
+          {(editable || approved) && (
             <UploadForm
               property={id}
               kind="document"
@@ -173,7 +230,7 @@ export default async function Listing({
               or contact our property team for early access.
             </div>
           )}
-          {["submitted", "under_review"].includes(p.status) ? (
+          {reviewLocked ? (
             <div className="notice success" role="status">
               This listing has been submitted and is awaiting review.
             </div>

@@ -31,16 +31,22 @@ export function UploadForm({
   kind,
   types = [],
   staff = false,
+  currentCount = 0,
+  limit,
 }: {
   property: string;
   kind: "image" | "document";
   types?: { id: string; name: string }[];
   staff?: boolean;
+  currentCount?: number;
+  limit?: number;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+  const allowanceReached =
+    kind === "image" && limit !== undefined && currentCount >= limit;
   return (
     <form
       className="stack-form"
@@ -95,6 +101,7 @@ export function UploadForm({
               : "image/jpeg,image/png,image/webp,application/pdf"
           }
           required
+          disabled={allowanceReached}
         />
       </label>
       <p className="form-caption">
@@ -103,6 +110,16 @@ export function UploadForm({
           ? "Evidence is private and is not published on your listing."
           : "Images are optimised and location metadata is removed."}
       </p>
+      {kind === "image" && limit !== undefined && (
+        <div
+          className={allowanceReached ? "notice error" : "notice"}
+          role={allowanceReached ? "alert" : "status"}
+        >
+          {allowanceReached
+            ? `You have reached this plan’s maximum of ${limit} photographs. Delete a photograph or choose a plan with a higher allowance.`
+            : `${currentCount} of ${limit} photographs used. You can add ${limit - currentCount} more.`}
+        </div>
+      )}
       {error && (
         <div className="notice error" role="alert">
           {error}
@@ -113,7 +130,7 @@ export function UploadForm({
           {message}
         </div>
       )}
-      <button className="button secondary" disabled={busy}>
+      <button className="button secondary" disabled={busy || allowanceReached}>
         {busy ? "Uploading…" : "Upload securely"}
       </button>
     </form>

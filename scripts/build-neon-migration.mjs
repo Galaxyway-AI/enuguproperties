@@ -13,6 +13,8 @@ const sourceFiles = [
   // roles and schemas, so renaming them would be invalid.
   "supabase/migrations/0011_approved_legal_documents.sql",
   "supabase/migrations/0012_registration_activation.sql",
+  "supabase/migrations/0013_staff_access.sql",
+  "supabase/migrations/0014_listing_usability.sql",
 ];
 
 const compatibility = `-- Neon compatibility layer for the original PostgreSQL schema.

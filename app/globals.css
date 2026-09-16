@@ -1209,6 +1209,19 @@ textarea {
   background: var(--warm);
   color: var(--green);
 }
+.admin-signout-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.admin-signout {
+  width: 100%;
+  background: #7f1d1d;
+  border-color: #7f1d1d;
+}
+.admin-signout:hover {
+  background: #641616;
+}
 .dashboard-content h1 {
   font-size: 34px;
   letter-spacing: -1px;
@@ -1352,6 +1365,21 @@ textarea {
   background: var(--warm);
   border-radius: 5px;
   font-size: 13px;
+}
+.upload-row-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+}
+.media-delete {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+.media-delete .notice {
+  margin: 0;
 }
 .modal {
   border: 0;
@@ -1873,6 +1901,18 @@ textarea {
     white-space: nowrap;
     font-size: 13px;
   }
+  .admin-signout-form {
+    margin: 0 0 0 8px;
+    padding: 0 0 0 12px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+  .admin-signout {
+    width: auto;
+    min-height: 38px;
+    padding: 8px 14px;
+    white-space: nowrap;
+  }
   .dashboard-heading {
     flex-direction: column;
     align-items: flex-start;
@@ -1898,6 +1938,13 @@ textarea {
   }
   .form-actions {
     flex-wrap: wrap;
+  }
+  .upload-row-content {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .media-delete {
+    justify-items: start;
   }
   .section-footnote {
     font-size: 11px;

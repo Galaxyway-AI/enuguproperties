@@ -10,13 +10,26 @@ import {
   checkBot,
   errorResponse,
   HttpError,
+  validationErrorMessage,
 } from "@/lib/security";
 import { toMinor } from "@/lib/domain";
 import { paystack } from "@/lib/payments";
 import { mailer } from "@/lib/email";
 const uuid = (v: unknown) => z.uuid().parse(v);
-const text = (v: unknown, min = 1, max = 5000) =>
-  z.string().min(min).max(max).parse(v);
+const text = (v: unknown, min = 1, max = 5000, label = "This field") => {
+  if (typeof v !== "string") throw new HttpError(400, `${label} is required.`);
+  if (v.length < min)
+    throw new HttpError(
+      400,
+      `${label} must contain at least ${min} ${min === 1 ? "character" : "characters"}.`,
+    );
+  if (v.length > max)
+    throw new HttpError(
+      400,
+      `${label} must contain no more than ${max} characters.`,
+    );
+  return v;
+};
 const optionalId = (v: unknown) => (v ? uuid(v) : null);
 const optionalNumber = (v: unknown, minimum: number, maximum: number) =>
   v === "" || v === null || v === undefined
@@ -43,7 +56,7 @@ export async function POST(request: NextRequest) {
       await checkBot(body.token, "contact");
       const email = z.email().parse(data.email);
       const category = text(data.category, 3, 60).replace(/[\r\n]+/g, " ");
-      const message = text(data.message, 20);
+      const message = text(data.message, 20, 5000, "Your message");
       await rateLimit(`contact:${email}`, 3, 600);
       const [ticket] = await serverQuery<{ reference: string }>(
         "insert into public.support_tickets(user_id,email,category,message) values($1,$2,$3,$4) returning reference",
@@ -93,7 +106,7 @@ export async function POST(request: NextRequest) {
         );
       const payload = {
         ...data,
-        title: text(data.title, 5, 160),
+        title: text(data.title, 5, 160, "Property title"),
         description: text(data.description || "", 0, 15000),
         category: z
           .enum(["houses", "land", "commercial", "new-developments"])
@@ -181,7 +194,14 @@ export async function POST(request: NextRequest) {
         p_id: uuid(body.id),
         p_plan: text(data.plan_id, 1, 40),
       });
-    else if (action === "submit") {
+    else if (action === "begin-listing-revision") {
+      const propertyId = uuid(body.id);
+      await rpc("begin_approved_listing_revision", { p_id: propertyId });
+      return Response.json({
+        ok: true,
+        url: `/account/listings/${propertyId}/edit`,
+      });
+    } else if (action === "submit") {
       if (data.accepted !== "on")
         throw new HttpError(400, "Confirm the seller declaration.");
       await rpc("submit_property", {
@@ -245,7 +265,7 @@ export async function POST(request: NextRequest) {
     } else if (action === "moderate") {
       const propertyId = uuid(body.id);
       const decision = text(data.decision, 3, 30);
-      const reason = text(data.reason, 5, 2000);
+      const reason = text(data.reason, 5, 2000, "Decision reason");
       await rpc("moderate_property", {
         p_id: propertyId,
         p_decision: decision,
@@ -439,7 +459,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     if (e instanceof z.ZodError)
-      return Response.json({ error: e.issues[0].message }, { status: 400 });
+      return Response.json(
+        { error: validationErrorMessage(e) },
+        { status: 400 },
+      );
     return errorResponse(e);
   }
 }

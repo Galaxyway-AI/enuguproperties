@@ -8,6 +8,7 @@ import {
   rateLimit,
   errorResponse,
   HttpError,
+  databaseErrorMessage,
 } from "@/lib/security";
 import { z } from "zod";
 import { validateMetadataFreeWebp } from "@/lib/webp";
@@ -50,18 +51,46 @@ export async function POST(request: NextRequest) {
     } else {
       const { data: p } = await client
         .from("properties")
-        .select("id,seller_id,status")
+        .select("id,seller_id,status,plan_id")
         .eq("id", property)
         .single();
       if (
         !p ||
         p.seller_id !== user.id ||
-        !["draft", "needs_changes"].includes(p.status)
+        !["draft", "needs_changes", "live", "paused", "under_offer"].includes(
+          p.status,
+        )
       )
         throw new HttpError(
           403,
-          "Only your editable draft can receive uploads.",
+          ["submitted", "under_review"].includes(p?.status || "")
+            ? "Photographs are locked while staff review this listing."
+            : "Photos can only be changed before submission or while preparing a new approved-listing revision.",
         );
+      if (kind === "image") {
+        const [{ data: plan }, media] = await Promise.all([
+          client
+            .from("listing_plans")
+            .select("name,photo_limit")
+            .eq("id", p.plan_id)
+            .single(),
+          client
+            .from("property_media")
+            .select("id", { count: "exact", head: true })
+            .eq("property_id", property)
+            .eq("kind", "image"),
+        ]);
+        if (!plan)
+          throw new HttpError(
+            400,
+            "Choose an advertising plan before uploading photographs.",
+          );
+        if ((media.count || 0) >= plan.photo_limit)
+          throw new HttpError(
+            400,
+            `Your ${plan.name} plan allows a maximum of ${plan.photo_limit} photographs. Delete a photograph or choose another plan.`,
+          );
+      }
     }
     const bytes = Buffer.from(await file.arrayBuffer());
     let mime = "image/webp";
@@ -148,6 +177,60 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     if (orphan) await deleteMedia(orphan.bucket, orphan.path);
+    const databaseMessage = databaseErrorMessage(e);
+    if (databaseMessage)
+      return Response.json({ error: databaseMessage }, { status: 400 });
+    return errorResponse(e);
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    sameOrigin(request);
+    if (!configured())
+      throw new HttpError(
+        503,
+        "Photo management is awaiting secure storage setup.",
+      );
+    const client = await db();
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    if (!user)
+      throw new HttpError(401, "Sign in before removing a photograph.");
+    await rateLimit(`delete-upload:${user.id}`, 20, 300);
+    const id = z.uuid().parse(request.nextUrl.searchParams.get("id"));
+    const rows = await serverQuery<{ bucket: MediaArea; storage_path: string }>(
+      "select * from public.delete_property_media($1,$2)",
+      [id, user.id],
+    );
+    const removed = rows[0];
+    if (!removed)
+      throw new HttpError(
+        404,
+        "The photograph was not found or is no longer available.",
+      );
+    try {
+      await deleteMedia(removed.bucket, removed.storage_path);
+    } catch {
+      console.error(
+        JSON.stringify({ event: "deleted_media_storage_cleanup_failed", id }),
+      );
+    }
+    return Response.json({
+      ok: true,
+      message:
+        "Photograph removed. You can upload a replacement before submitting.",
+    });
+  } catch (e) {
+    if (e instanceof z.ZodError)
+      return Response.json(
+        { error: "Choose a valid photograph to remove." },
+        { status: 400 },
+      );
+    const databaseMessage = databaseErrorMessage(e);
+    if (databaseMessage)
+      return Response.json({ error: databaseMessage }, { status: 400 });
     return errorResponse(e);
   }
 }

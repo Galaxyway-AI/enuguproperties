@@ -42,6 +42,31 @@ export function ListingWizard({
   const form = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saving = useRef(false);
+  const lockedForReview = ["submitted", "under_review"].includes(
+    initial.status || "",
+  );
+  const approved = ["live", "under_offer", "paused"].includes(
+    initial.status || "",
+  );
+
+  function explainInvalidField(input: HTMLInputElement | null) {
+    if (!input) return "Complete the required fields before saving.";
+    const label =
+      input.closest("label")?.childNodes[0]?.textContent?.trim() ||
+      "This field";
+    if (input.validity.valueMissing) return `${label} is required.`;
+    if (input.validity.tooShort)
+      return `${label} must contain at least ${input.minLength} characters. You have entered ${input.value.length}.`;
+    if (input.validity.tooLong)
+      return `${label} must contain no more than ${input.maxLength} characters.`;
+    if (input.validity.rangeUnderflow)
+      return `${label} must be ${input.min} or more.`;
+    if (input.validity.rangeOverflow)
+      return `${label} must be ${input.max} or less.`;
+    if (input.validity.patternMismatch && input.name === "price")
+      return "Asking price must be a number with no commas and no more than two decimal places.";
+    return input.validationMessage || `${label} needs correcting.`;
+  }
   async function save() {
     if (!form.current || saving.current) return;
     if (!form.current.checkValidity()) {
@@ -51,9 +76,8 @@ export function ListingWizard({
           ? 0
           : 1,
       );
-      setError(
-        "Complete the required property title, area, asking price and land size before saving.",
-      );
+      setError(explainInvalidField(invalid));
+      invalid?.focus();
       return;
     }
     setBusy(true);
@@ -79,22 +103,50 @@ export function ListingWizard({
       setBusy(false);
     }
   }
+  if (lockedForReview)
+    return (
+      <div className="empty-state">
+        <h1>This listing is locked for review.</h1>
+        <p>
+          Staff are reviewing the submitted version. You can edit it again if
+          amendments are requested, or after it has been approved. Any later
+          changes will require another approval.
+        </p>
+        <Link className="button" href={`/account/listings/${initial.id}`}>
+          Return to listing
+        </Link>
+      </div>
+    );
+  if (approved)
+    return (
+      <div className="empty-state">
+        <h1>Start a reviewed revision first.</h1>
+        <p>
+          Return to the listing and choose “Edit approved listing”. This keeps a
+          clear review history and tells you when the revised version is ready
+          to submit again.
+        </p>
+        <Link className="button" href={`/account/listings/${initial.id}`}>
+          Return to listing
+        </Link>
+      </div>
+    );
   return (
     <>
       <h1>
         {initial.id ? "Edit your property" : "Let’s introduce your property."}
       </h1>
       <p>
-        Start with the essentials. Save your draft, then add media, evidence and
-        your advertising plan.
+        Start with the essentials. Save your draft, then add photographs, choose
+        your advertising plan and optionally add private evidence.
       </p>
-      {initial.status &&
-        ["live", "under_offer", "paused"].includes(initial.status) && (
-          <div className="notice">
-            Saving an edit returns this listing to moderation and expires
-            previous verification checks.
-          </div>
-        )}
+      {initial.status === "needs_changes" && (
+        <div className="notice">
+          This is an editable revision. Complete all changes and photographs,
+          then submit it for a fresh review. The listing cannot return to the
+          live marketplace until staff approve this version.
+        </div>
+      )}
       <div className="wizard-steps">
         {["Property & location", "Details & price", "Ownership"].map((s, i) => (
           <button
@@ -533,8 +585,8 @@ export function ListingWizard({
             />
           </label>
           <div className="notice">
-            Document availability does not establish validity. Upload the
-            relevant evidence on the next screen for review.
+            These details are optional. Document availability does not establish
+            validity, and you may submit without uploading evidence.
           </div>
         </div>
         {error && (
@@ -579,7 +631,7 @@ export function ListingWizard({
           style={{ marginTop: 20 }}
           href={`/account/listings/${id}`}
         >
-          Continue to photos, evidence and submission
+          Continue to photos and submission
         </Link>
       )}
     </>

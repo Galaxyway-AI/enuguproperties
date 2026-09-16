@@ -43,8 +43,12 @@ export function AuthForm({
               resetToken,
             }),
           });
-          const result = await r.json();
-          if (!r.ok) throw new Error(result.error);
+          const result = await r.json().catch(() => ({}));
+          if (!r.ok)
+            throw new Error(
+              result.error ||
+                `Account request failed (${r.status}). Please reload the page and try again.`,
+            );
           if (mode === "login") window.location.href = safeNext(next || null);
           else setMessage(result.message);
         } catch (e) {

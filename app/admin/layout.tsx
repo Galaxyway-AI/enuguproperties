@@ -74,6 +74,15 @@ export default async function AdminLayout({
             </Link>
           ))}
         <Link href="/account/dashboard">My account</Link>
+        <form
+          className="admin-signout-form"
+          action="/auth/signout"
+          method="post"
+        >
+          <button className="button admin-signout" type="submit">
+            Sign out
+          </button>
+        </form>
       </nav>
       <div className="dashboard-content">{children}</div>
     </div>
