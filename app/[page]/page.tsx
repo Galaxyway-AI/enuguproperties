@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { content } from "@/lib/content";
 import { configured, db } from "@/lib/supabase";
-import { business, features, whatsappUrl } from "@/lib/business";
+import { business, diasporaWhatsappUrl } from "@/lib/business";
 export async function generateMetadata({
   params,
 }: {
@@ -78,24 +78,13 @@ export default async function Information({
                 <br />
                 <a
                   className="text-link"
-                  href={whatsappUrl(
+                  href={diasporaWhatsappUrl(
                     "Hello Enugu Properties, I am buying from abroad and would like assistance.",
                   )}
                 >
-                  WhatsApp {business.whatsappDisplay}
+                  Phone / WhatsApp {business.diasporaWhatsappDisplay}
                 </a>
               </p>
-              {features.ukDiasporaContact && (
-                <div>
-                  <h3>UK diaspora contact</h3>
-                  {process.env.UK_DIASPORA_PHONE && (
-                    <p>{process.env.UK_DIASPORA_PHONE}</p>
-                  )}
-                  {process.env.UK_DIASPORA_ADDRESS && (
-                    <p>{process.env.UK_DIASPORA_ADDRESS}</p>
-                  )}
-                </div>
-              )}
             </section>
           )}
           {c.cta && (

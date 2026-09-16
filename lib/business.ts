@@ -14,12 +14,19 @@ export const business = {
   ],
   supportEmail: "support@enuguproperties.com",
   diasporaEmail: "diaspora@enuguproperties.com",
-  whatsappE164: "+2349033660763",
-  whatsappDisplay: "+234 903 366 0763",
+  whatsappE164: "+2348037718967",
+  whatsappDisplay: "+234 803 771 8967",
+  diasporaWhatsappE164: "+447777243332",
+  diasporaWhatsappDisplay: "+44 7777 243 332",
 } as const;
 
 export function whatsappUrl(message: string) {
   const number = business.whatsappE164.replace(/\D/g, "");
+  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+}
+
+export function diasporaWhatsappUrl(message: string) {
+  const number = business.diasporaWhatsappE164.replace(/\D/g, "");
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 

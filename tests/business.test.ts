@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { appUrl, business, whatsappUrl } from "../lib/business";
+import {
+  appUrl,
+  business,
+  diasporaWhatsappUrl,
+  whatsappUrl,
+} from "../lib/business";
 import { validTurnstileResult } from "../lib/turnstile";
 
 test("confirmed business identity and contact routing are canonical", () => {
@@ -10,8 +15,12 @@ test("confirmed business identity and contact routing are canonical", () => {
   assert.equal(business.diasporaEmail, "diaspora@enuguproperties.com");
   const url = new URL(whatsappUrl("Property EP-2026-000142"));
   assert.equal(url.hostname, "wa.me");
-  assert.equal(url.pathname, "/2349033660763");
+  assert.equal(url.pathname, "/2348037718967");
   assert.equal(url.searchParams.get("text"), "Property EP-2026-000142");
+  const diasporaUrl = new URL(diasporaWhatsappUrl("Diaspora enquiry"));
+  assert.equal(diasporaUrl.hostname, "wa.me");
+  assert.equal(diasporaUrl.pathname, "/447777243332");
+  assert.equal(diasporaUrl.searchParams.get("text"), "Diaspora enquiry");
 });
 
 test("production email links cannot fall back to localhost", () => {

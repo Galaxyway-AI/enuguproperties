@@ -37,11 +37,13 @@ export function Gallery({
       </div>
       <dialog ref={dialog} className="modal" aria-label="Property photographs">
         <button
-          className="icon-button"
+          type="button"
+          className="modal-close"
           aria-label="Close gallery"
           onClick={() => dialog.current?.close()}
         >
-          <X />
+          <span>Close</span>
+          <X size={19} aria-hidden="true" />
         </button>
         <div className="modal-image">
           {images[index] && (
@@ -55,6 +57,7 @@ export function Gallery({
         </div>
         <div className="form-actions">
           <button
+            type="button"
             className="icon-button"
             aria-label="Previous photograph"
             disabled={index === 0}
@@ -66,6 +69,7 @@ export function Gallery({
             {index + 1} / {images.length}
           </span>
           <button
+            type="button"
             className="icon-button"
             aria-label="Next photograph"
             disabled={index === images.length - 1}

@@ -32,9 +32,18 @@ export function validationErrorMessage(error: z.ZodError) {
   return issue.message || "Check the highlighted information and try again.";
 }
 
+function errorDetails(error: unknown) {
+  if (!error || typeof error !== "object") return { code: "", message: "" };
+  const value = error as { code?: unknown; message?: unknown };
+  return {
+    code: typeof value.code === "string" ? value.code : "",
+    message: typeof value.message === "string" ? value.message : "",
+  };
+}
+
 export function databaseErrorMessage(error: unknown) {
-  if (!(error instanceof Error)) return null;
-  const message = error.message;
+  const { message } = errorDetails(error);
+  if (!message) return null;
   const known = [
     "maximum of",
     "photograph",
@@ -51,6 +60,31 @@ export function databaseErrorMessage(error: unknown) {
   )
     ? message
     : null;
+}
+
+export function databaseActionErrorMessage(error: unknown) {
+  const { code, message } = errorDetails(error);
+  if (code === "P0001" && message) return message;
+  const knownMessage = databaseErrorMessage(error);
+  if (knownMessage) return knownMessage;
+  const messages: Record<string, string> = {
+    "22P02":
+      "One of the submitted values has the wrong format. Refresh the page and select the value again.",
+    "23503":
+      "This action depends on a related record that is missing or no longer available.",
+    "23505":
+      "A record with these details already exists, so this action was not repeated.",
+    "23514": "One of the submitted values is outside the allowed range.",
+    "42501": "Your account does not have permission to perform this action.",
+    PGRST116:
+      "The requested record could not be found or is no longer available.",
+    PGRST202:
+      "This action is not available in the current database version. Refresh the page and try again.",
+  };
+  if (messages[code]) return messages[code];
+  return code
+    ? `The database rejected this action (${code}). Refresh the page and try again.`
+    : "The database rejected this action. Refresh the page and try again.";
 }
 export function sameOrigin(request: NextRequest) {
   const expected = new URL(

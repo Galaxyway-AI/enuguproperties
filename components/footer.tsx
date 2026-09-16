@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
-import { business, whatsappUrl } from "@/lib/business";
+import { business, diasporaWhatsappUrl, whatsappUrl } from "@/lib/business";
 export function Footer() {
   return (
     <footer className="footer">
@@ -65,7 +65,14 @@ export function Footer() {
               "Hello Enugu Properties, I would like assistance with a property enquiry.",
             )}
           >
-            WhatsApp {business.whatsappDisplay}
+            Nigeria WhatsApp {business.whatsappDisplay}
+          </a>
+          <a
+            href={diasporaWhatsappUrl(
+              "Hello Enugu Properties, I am buying from abroad and would like assistance.",
+            )}
+          >
+            Diaspora WhatsApp {business.diasporaWhatsappDisplay}
           </a>
         </div>
       </div>

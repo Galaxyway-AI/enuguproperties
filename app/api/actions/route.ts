@@ -11,6 +11,7 @@ import {
   errorResponse,
   HttpError,
   validationErrorMessage,
+  databaseActionErrorMessage,
 } from "@/lib/security";
 import { toMinor } from "@/lib/domain";
 import { paystack } from "@/lib/payments";
@@ -80,13 +81,7 @@ export async function POST(request: NextRequest) {
     let result: unknown = null;
     async function rpc(name: string, args: Record<string, unknown>) {
       const { data, error } = await client.rpc(name, args);
-      if (error)
-        throw new HttpError(
-          400,
-          error.code === "P0001"
-            ? error.message
-            : "Check your information and try again.",
-        );
+      if (error) throw new HttpError(400, databaseActionErrorMessage(error));
       return data;
     }
     if (action === "profile")
@@ -271,14 +266,16 @@ export async function POST(request: NextRequest) {
         p_decision: decision,
         p_reason: reason,
       });
-      const [notice] = await serverQuery<{
-        review_id: string;
-        notification_id: string | null;
-        email: string;
-        reference: string;
-        title: string;
-      }>(
-        `select review.id::text review_id,
+      let emailed = false;
+      try {
+        const [notice] = await serverQuery<{
+          review_id: string;
+          notification_id: string | null;
+          email: string;
+          reference: string;
+          title: string;
+        }>(
+          `select review.id::text review_id,
                 (select notification.id::text
                  from public.notifications notification
                  where notification.user_id=property.seller_id
@@ -293,11 +290,9 @@ export async function POST(request: NextRequest) {
            where property_id=property.id order by created_at desc limit 1
          ) review on true
          where property.id=$1`,
-        [propertyId],
-      );
-      let emailed = false;
-      if (notice) {
-        try {
+          [propertyId],
+        );
+        if (notice) {
           await mailer.send({
             id: `moderation-${notice.review_id}`,
             to: notice.email,
@@ -310,9 +305,17 @@ export async function POST(request: NextRequest) {
               "update public.email_outbox set status='sent',sent_at=now() where notification_id=$1",
               [notice.notification_id],
             );
-        } catch {
-          console.error(JSON.stringify({ event: "moderation_email_queued" }));
         }
+      } catch (notificationError) {
+        console.error(
+          JSON.stringify({
+            event: "moderation_notification_queued",
+            type:
+              notificationError instanceof Error
+                ? notificationError.name
+                : "Unknown",
+          }),
+        );
       }
       return Response.json({
         ok: true,

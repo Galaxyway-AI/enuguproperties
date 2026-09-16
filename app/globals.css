@@ -1387,6 +1387,7 @@ textarea {
   max-width: 900px;
   width: 90%;
   padding: 20px;
+  position: relative;
   box-shadow: 0 15px 70px #0005;
 }
 .modal::backdrop {
@@ -1396,9 +1397,29 @@ textarea {
   position: relative;
   height: 65vh;
 }
-.modal .icon-button {
-  float: right;
-  margin-bottom: 10px;
+.modal-close {
+  align-items: center;
+  background: var(--green);
+  border: 2px solid white;
+  border-radius: 999px;
+  box-shadow: 0 3px 16px #0007;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  min-height: 42px;
+  padding: 8px 13px;
+  position: absolute;
+  right: 30px;
+  top: 30px;
+  z-index: 5;
+}
+.modal-close:hover,
+.modal-close:focus-visible {
+  background: var(--ink);
 }
 .no-image {
   display: grid;

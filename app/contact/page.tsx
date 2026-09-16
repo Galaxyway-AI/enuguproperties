@@ -1,5 +1,5 @@
 import { ActionForm } from "@/components/action-form";
-import { business, whatsappUrl } from "@/lib/business";
+import { business, diasporaWhatsappUrl, whatsappUrl } from "@/lib/business";
 export const metadata = { title: "Contact the property team" };
 export default async function Contact({
   searchParams,
@@ -40,9 +40,18 @@ export default async function Contact({
             <a className="text-link" href={`mailto:${business.diasporaEmail}`}>
               {business.diasporaEmail}
             </a>
+            <br />
+            <a
+              className="text-link"
+              href={diasporaWhatsappUrl(
+                "Hello Enugu Properties, I am buying from abroad and would like assistance.",
+              )}
+            >
+              Phone / WhatsApp {business.diasporaWhatsappDisplay}
+            </a>
           </div>
           <div className="panel">
-            <h2>WhatsApp</h2>
+            <h2>Nigeria WhatsApp</h2>
             <p>
               Contact the Nigeria team. Do not send identity documents or
               banking credentials.
