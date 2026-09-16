@@ -82,7 +82,7 @@
         "FEATURE_FREE_LISTINGS": "true",
         "FEATURE_ENQUIRIES": "true",
         "FEATURE_INSPECTIONS": "true",
-        "FEATURE_PAID_LISTINGS": "false",
+        "FEATURE_PAID_LISTINGS": "true",
         "FEATURE_PROPERTY_PURCHASE_PAYMENTS": "false",
         "FEATURE_ESCROW": "false",
         "FEATURE_OFFERS": "false",
