@@ -7,6 +7,7 @@ import {
   whatsappUrl,
 } from "../lib/business";
 import { validTurnstileResult } from "../lib/turnstile";
+import { registrationErrorMessage } from "../lib/registration-errors";
 import {
   isTrustedAppOrigin,
   trustedAppHostnames,
@@ -74,6 +75,25 @@ test("Turnstile requires success, hostname and action", () => {
       "register",
     ),
     false,
+  );
+});
+
+test("registration errors explain common account-service failures", () => {
+  assert.match(
+    registrationErrorMessage({ code: "USER_ALREADY_EXISTS", message: "Failed" }),
+    /already uses this email/i,
+  );
+  assert.match(
+    registrationErrorMessage({ code: "OVER_REQUEST_RATE_LIMIT", status: 429 }),
+    /wait 10 minutes/i,
+  );
+  assert.match(
+    registrationErrorMessage({ code: "UNTRUSTED_ORIGIN" }),
+    /confirmation-link address/i,
+  );
+  assert.match(
+    registrationErrorMessage({ code: "FAILED_TO_CREATE_USER", status: 500 }),
+    /could not save this registration/i,
   );
 });
 

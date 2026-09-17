@@ -16,6 +16,7 @@ export function AuthForm({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   if (message && mode === "register")
     return (
       <div className="notice success submission-success" role="status">
@@ -28,6 +29,10 @@ export function AuthForm({
       className="stack-form"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (!token) {
+          setError("Please complete the security check.");
+          return;
+        }
         setBusy(true);
         setError("");
         setMessage("");
@@ -53,6 +58,7 @@ export function AuthForm({
           else setMessage(result.message);
         } catch (e) {
           setError(e instanceof Error ? e.message : "Please try again.");
+          setTurnstileResetKey((value) => value + 1);
         } finally {
           setBusy(false);
         }
@@ -160,7 +166,11 @@ export function AuthForm({
           </p>
         </>
       )}
-      <Turnstile onToken={setToken} action={mode} />
+      <Turnstile
+        onToken={setToken}
+        action={mode}
+        resetKey={turnstileResetKey}
+      />
       {error && (
         <div className="notice error" role="alert">
           {error}

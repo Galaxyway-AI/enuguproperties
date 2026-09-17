@@ -13,6 +13,10 @@ import {
 import { appUrl, features } from "@/lib/business";
 import { serverQuery } from "@/lib/server-db";
 import { safelySendOperationsAlert } from "@/lib/email";
+import {
+  registrationErrorDetails,
+  registrationErrorMessage,
+} from "@/lib/registration-errors";
 export async function POST(request: NextRequest) {
   try {
     sameOrigin(request);
@@ -73,11 +77,21 @@ export async function POST(request: NextRequest) {
         name,
         callbackURL: appUrl("/account"),
       });
-      if (error)
-        throw new HttpError(
-          400,
-          friendlyRegistrationError(error.message || ""),
+      if (error) {
+        const details = registrationErrorDetails(error);
+        console.error(
+          JSON.stringify({
+            event: "registration_rejected",
+            code: details.code || "UNKNOWN",
+            status: details.status || 0,
+            at: new Date().toISOString(),
+          }),
         );
+        throw new HttpError(
+          details.status === 429 ? 429 : 400,
+          registrationErrorMessage(error),
+        );
+      }
       const userId = data?.user?.id;
       if (!userId)
         throw new HttpError(
@@ -124,15 +138,4 @@ export async function POST(request: NextRequest) {
       );
     return errorResponse(e);
   }
-}
-
-function friendlyRegistrationError(message: string) {
-  const value = message.toLowerCase();
-  if (value.includes("already") || value.includes("exist"))
-    return "An account already uses this email address. Sign in or use account recovery.";
-  if (value.includes("email"))
-    return "Enter a valid email address that you can open to confirm your account.";
-  if (value.includes("password"))
-    return "Choose a password containing at least 12 characters.";
-  return "We could not create the account. Check each field, or use account recovery if you have registered before.";
 }

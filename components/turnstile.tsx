@@ -1,6 +1,6 @@
 "use client";
 import Script from "next/script";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 declare global {
   interface Window {
     turnstile?: {
@@ -15,35 +15,60 @@ declare global {
           appearance: "always";
         },
       ) => string;
+      reset: (widgetId?: string) => void;
     };
   }
 }
 export function Turnstile({
   onToken,
   action,
+  resetKey = 0,
 }: {
   onToken: (token: string) => void;
   action: string;
+  resetKey?: number;
 }) {
   const target = useRef<HTMLDivElement>(null);
   const rendered = useRef(false);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(
-    "loading",
-  );
-  function render() {
+  const widgetId = useRef<string | undefined>(undefined);
+  const previousResetKey = useRef(resetKey);
+  const [canReset, setCanReset] = useState(false);
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "verified" | "expired" | "error"
+  >("loading");
+
+  const reset = useCallback(() => {
+    onToken("");
+    if (widgetId.current && window.turnstile) {
+      window.turnstile.reset(widgetId.current);
+      setStatus("ready");
+    }
+  }, [onToken]);
+
+  useEffect(() => {
+    if (previousResetKey.current === resetKey) return;
+    previousResetKey.current = resetKey;
+    reset();
+  }, [reset, resetKey]);
+
+  const render = useCallback(() => {
     const key = document.body.dataset.turnstileSiteKey || "";
     if (!key) {
       setStatus("error");
       return;
     }
     if (!rendered.current && target.current && window.turnstile) {
-      window.turnstile.render(target.current, {
+      widgetId.current = window.turnstile.render(target.current, {
         sitekey: key,
         callback: (token) => {
-          setStatus("ready");
+          setStatus("verified");
           onToken(token);
         },
-        "expired-callback": () => onToken(""),
+        "expired-callback": () => {
+          setStatus("expired");
+          onToken("");
+          window.setTimeout(reset, 0);
+        },
         "error-callback": () => {
           setStatus("error");
           onToken("");
@@ -52,9 +77,10 @@ export function Turnstile({
         appearance: "always",
       });
       rendered.current = true;
+      setCanReset(true);
       setStatus("ready");
     }
-  }
+  }, [action, onToken, reset]);
   return (
     <div className="turnstile-shell">
       <Script
@@ -70,8 +96,22 @@ export function Turnstile({
       )}
       {status === "error" && (
         <span className="turnstile-status error" role="alert">
-          The security check could not load. Refresh the page and try again.
+          The security check could not load. Use the reset button to try again.
         </span>
+      )}
+      {status === "expired" && (
+        <span className="turnstile-status error" role="alert">
+          The security check expired and is being reset.
+        </span>
+      )}
+      {canReset && (
+        <button
+          className="button secondary small turnstile-reset"
+          type="button"
+          onClick={reset}
+        >
+          Reset security check
+        </button>
       )}
     </div>
   );
