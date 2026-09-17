@@ -2142,6 +2142,85 @@ textarea {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.new-member-offer {
+  background: #f3eee1;
+  border-bottom: 1px solid #dfd5bc;
+}
+.new-member-offer-inner,
+.pricing-offer,
+.volume-discount {
+  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 24px;
+}
+.new-member-offer-inner {
+  padding-block: 28px;
+}
+.offer-icon {
+  align-items: center;
+  background: var(--green);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  height: 54px;
+  justify-content: center;
+  width: 54px;
+}
+.new-member-offer h2,
+.pricing-offer h2,
+.volume-discount h2 {
+  font-size: 26px;
+  margin: 3px 0 7px;
+}
+.new-member-offer p,
+.pricing-offer p,
+.volume-discount p {
+  font-size: 14px;
+  margin: 0;
+  max-width: 720px;
+}
+.offer-actions {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.offer-actions .text-link {
+  font-size: 12px;
+}
+.pricing-offer,
+.volume-discount {
+  border: 1px solid #dfd5bc;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  padding: 28px;
+}
+.pricing-offer {
+  background: #f3eee1;
+}
+.volume-discount {
+  background: var(--warm);
+  margin: 30px 0 42px;
+}
+.plan-card {
+  position: relative;
+}
+.plan-offer-badge {
+  background: #b42318;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+  padding: 7px 11px;
+}
+.plan-offer-copy {
+  color: var(--green);
+  font-weight: 700;
+}
 .browse-types {
   padding-bottom: 28px;
 }
@@ -2269,6 +2348,27 @@ textarea {
     display: none;
   }
   .marketplace-actions .button {
+    width: 100%;
+  }
+  .new-member-offer-inner,
+  .pricing-offer,
+  .volume-discount {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+  .new-member-offer-inner {
+    padding-block: 26px;
+  }
+  .new-member-offer h2,
+  .pricing-offer h2,
+  .volume-discount h2 {
+    font-size: 23px;
+  }
+  .offer-actions,
+  .offer-actions .button,
+  .pricing-offer .button,
+  .volume-discount .button {
+    align-items: stretch;
     width: 100%;
   }
   .type-card-grid {

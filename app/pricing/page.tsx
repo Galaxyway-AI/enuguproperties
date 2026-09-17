@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, ArrowUpRight } from "lucide-react";
+import { Check, ArrowUpRight, Gift, Building2 } from "lucide-react";
 import { getPlans } from "@/lib/catalogue";
 import { configured } from "@/lib/supabase";
 import { money } from "@/lib/domain";
@@ -36,19 +36,44 @@ export default async function Pricing() {
         {!features.paidListings && (
           <div className="notice">
             Paid plans are launching shortly. Contact us for early access. Free
-            listing onboarding is available through our property team during
-            the launch period.
+            listing onboarding is available through our property team during the
+            launch period.
           </div>
         )}
+        <div className="pricing-offer">
+          <span className="offer-icon" aria-hidden="true">
+            <Gift size={29} />
+          </span>
+          <div>
+            <span className="eyebrow">NEW MEMBER OFFER</span>
+            <h2>Get your first Plus advert FREE.</h2>
+            <p>
+              New members can advertise their first property on the Plus plan at
+              no charge. Register, create your first listing and choose Plus;
+              the discount is applied automatically.
+            </p>
+          </div>
+          <Link className="button" href="/register">
+            Register for the offer <ArrowUpRight size={17} />
+          </Link>
+        </div>
         <div className="price-grid">
           {plans.map((plan) => (
             <article
               className={`plan-card ${plan.id === "plus" ? "highlight" : ""}`}
               key={plan.id}
             >
+              {plan.id === "plus" && (
+                <span className="plan-offer-badge">FIRST ADVERT FREE</span>
+              )}
               <span className="eyebrow">{plan.name.toUpperCase()}</span>
               <div className="plan-price">{money(plan.price_minor)}</div>
               <p>per listing · {plan.duration_days} days</p>
+              {plan.id === "plus" && (
+                <p className="plan-offer-copy">
+                  New members pay ₦0 for their first Plus listing.
+                </p>
+              )}
               <ul>
                 <li>
                   <Check size={17} />
@@ -94,6 +119,23 @@ export default async function Pricing() {
               </Link>
             </article>
           ))}
+        </div>
+        <div className="volume-discount">
+          <span className="offer-icon" aria-hidden="true">
+            <Building2 size={28} />
+          </span>
+          <div>
+            <span className="eyebrow">MULTIPLE PROPERTY ADVERTS</span>
+            <h2>Discounts for estate agents and developers.</h2>
+            <p>
+              We offer advertising discounts to estate agents and developers
+              listing multiple properties. Contact us with the number and type
+              of adverts you plan to publish for details.
+            </p>
+          </div>
+          <Link className="button secondary" href="/contact?category=Seller">
+            Contact us for details <ArrowUpRight size={17} />
+          </Link>
         </div>
         <div className="prose">
           <h2>Advertising and verification are separate.</h2>

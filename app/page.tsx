@@ -15,6 +15,7 @@ import {
   Store,
   CalendarDays,
   KeyRound,
+  Gift,
 } from "lucide-react";
 import { getAreas, getProperties, isDemo } from "@/lib/catalogue";
 import { SearchForm } from "@/components/search";
@@ -66,6 +67,30 @@ export default async function Home() {
           </div>
         </div>
       </section>
+      <section className="new-member-offer">
+        <div className="container new-member-offer-inner">
+          <span className="offer-icon" aria-hidden="true">
+            <Gift size={27} />
+          </span>
+          <div>
+            <span className="eyebrow">NEW MEMBER OFFER</span>
+            <h2>Your first Plus property advert is FREE.</h2>
+            <p>
+              Register as a new member and choose Plus for your first listing.
+              Your free offer is applied automatically, giving you more photos,
+              video and 45 days of advertising.
+            </p>
+          </div>
+          <div className="offer-actions">
+            <Link className="button" href="/register">
+              Register and advertise <ArrowUpRight size={18} />
+            </Link>
+            <Link className="text-link" href="/pricing">
+              View advertising plans <ArrowRight size={17} />
+            </Link>
+          </div>
+        </div>
+      </section>
       <section className="trust-strip">
         <div className="container">
           <div>
@@ -95,17 +120,48 @@ export default async function Home() {
         </div>
         <div className="type-card-grid">
           {[
-            [HomeIcon, "Houses", "/properties/houses?purpose=sale", "Homes to buy"],
-            [Building2, "Flats & apartments", "/properties?purpose=rent&category=houses&property_type=flat", "Homes to rent"],
-            [Mountain, "Land & plots", "/properties/land?purpose=sale", "Land for sale"],
-            [Store, "Commercial", "/properties/commercial", "Business property"],
-            [CalendarDays, "Short lets", "/properties?purpose=short-let", "Book short stays"],
+            [
+              HomeIcon,
+              "Houses",
+              "/properties/houses?purpose=sale",
+              "Homes to buy",
+            ],
+            [
+              Building2,
+              "Flats & apartments",
+              "/properties?purpose=rent&category=houses&property_type=flat",
+              "Homes to rent",
+            ],
+            [
+              Mountain,
+              "Land & plots",
+              "/properties/land?purpose=sale",
+              "Land for sale",
+            ],
+            [
+              Store,
+              "Commercial",
+              "/properties/commercial",
+              "Business property",
+            ],
+            [
+              CalendarDays,
+              "Short lets",
+              "/properties?purpose=short-let",
+              "Book short stays",
+            ],
             [KeyRound, "Rentals", "/properties?purpose=rent", "Browse rentals"],
           ].map(([Icon, title, href, copy]) => {
             const TypeIcon = Icon as typeof HomeIcon;
             return (
-              <Link className="type-card" href={href as string} key={title as string}>
-                <span><TypeIcon size={26} /></span>
+              <Link
+                className="type-card"
+                href={href as string}
+                key={title as string}
+              >
+                <span>
+                  <TypeIcon size={26} />
+                </span>
                 <h3>{title as string}</h3>
                 <p>{copy as string}</p>
                 <ArrowUpRight size={18} />
