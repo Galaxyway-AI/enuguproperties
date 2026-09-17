@@ -31,7 +31,11 @@ export function diasporaWhatsappUrl(message: string) {
 }
 
 export function appUrl(path = "") {
-  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  // APP_URL is a server-only runtime binding. NEXT_PUBLIC_APP_URL is retained
+  // for browser metadata, but Next/Vite may inline its build-time value from
+  // .env.local, which must never decide production email or auth redirects.
+  const configured =
+    process.env["APP_URL"] || process.env.NEXT_PUBLIC_APP_URL;
   const base =
     configured &&
     !configured.includes("localhost") &&

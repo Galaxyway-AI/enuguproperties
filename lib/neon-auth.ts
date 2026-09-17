@@ -71,7 +71,6 @@ type EmailSignUpInput = {
   email: string;
   password: string;
   name: string;
-  callbackURL: string;
 };
 
 type EmailSignUpResult = {
@@ -104,6 +103,7 @@ export async function signUpWithEmail(
     headers: {
       "Content-Type": "application/json",
       Origin: new URL(appUrl()).origin,
+      "x-neon-auth-proxy": "nextjs",
     },
     body: JSON.stringify(input),
     signal: AbortSignal.timeout(15000),

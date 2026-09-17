@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
         email,
         password,
         name,
-        callbackURL: appUrl("/account"),
       });
       if (error) {
         const details = registrationErrorDetails(error);

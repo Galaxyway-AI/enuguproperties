@@ -32,9 +32,11 @@ test("confirmed business identity and contact routing are canonical", () => {
 test("production email links cannot fall back to localhost", () => {
   const env = process.env as Record<string, string | undefined>;
   const previousNodeEnv = process.env.NODE_ENV;
+  const previousRuntimeUrl = process.env.APP_URL;
   const previousUrl = process.env.NEXT_PUBLIC_APP_URL;
   try {
     env.NODE_ENV = "production";
+    process.env.APP_URL = "https://enuguproperties.com";
     process.env.NEXT_PUBLIC_APP_URL = "http://127.0.0.1:3000";
     assert.equal(
       appUrl("/account/dashboard"),
@@ -43,6 +45,8 @@ test("production email links cannot fall back to localhost", () => {
   } finally {
     if (previousNodeEnv === undefined) delete env.NODE_ENV;
     else env.NODE_ENV = previousNodeEnv;
+    if (previousRuntimeUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = previousRuntimeUrl;
     if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
     else process.env.NEXT_PUBLIC_APP_URL = previousUrl;
   }

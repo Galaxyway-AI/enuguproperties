@@ -16,6 +16,7 @@
     "binding": "CF_VERSION_METADATA",
   },
   "vars": {
+    "APP_URL": "https://enugu-properties.emailgalaxyway.workers.dev",
     "NEXT_PUBLIC_APP_URL": "https://enugu-properties.emailgalaxyway.workers.dev",
     "NEON_AUTH_BASE_URL": "https://ep-crimson-block-za1a50ot.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
     "NEXT_PUBLIC_NEON_AUTH_URL": "https://ep-crimson-block-za1a50ot.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
@@ -68,6 +69,7 @@
         "binding": "CF_VERSION_METADATA",
       },
       "vars": {
+        "APP_URL": "https://enuguproperties.com",
         "NEXT_PUBLIC_APP_URL": "https://enuguproperties.com",
         "NEON_AUTH_BASE_URL": "https://ep-holy-sound-zaigrb4x.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
         "NEXT_PUBLIC_NEON_AUTH_URL": "https://ep-holy-sound-zaigrb4x.neonauth.c-2.eu-west-2.aws.neon.tech/neondb/auth",
