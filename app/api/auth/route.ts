@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { after, NextRequest } from "next/server";
 import { z } from "zod";
 import { configured } from "@/lib/supabase";
 import { neonAuth } from "@/lib/neon-auth";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/security";
 import { appUrl, features } from "@/lib/business";
 import { serverQuery } from "@/lib/server-db";
+import { safelySendOperationsAlert } from "@/lib/email";
 export async function POST(request: NextRequest) {
   try {
     sameOrigin(request);
@@ -86,6 +87,14 @@ export async function POST(request: NextRequest) {
       await serverQuery(
         "select app_private.complete_registration($1,$2,$3,$4)",
         [userId, name, phone, sellerType],
+      );
+      after(() =>
+        safelySendOperationsAlert({
+          id: `registration-${userId}`,
+          subject: "New Enugu Properties registration",
+          text: `A new user has registered.\n\nName: ${name}\nEmail: ${email}\nAccount type: ${sellerType.replaceAll("-", " ")}`,
+          adminPath: "/admin/accounts",
+        }),
       );
       return Response.json({
         message: "Check your email for a confirmation link before signing in.",

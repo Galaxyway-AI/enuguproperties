@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { after, NextRequest } from "next/server";
 import { z } from "zod";
 import { db, configured } from "@/lib/supabase";
 import { serverQuery } from "@/lib/server-db";
@@ -15,7 +15,11 @@ import {
 } from "@/lib/security";
 import { toMinor } from "@/lib/domain";
 import { kora } from "@/lib/payments";
-import { mailer } from "@/lib/email";
+import {
+  mailer,
+  safelyRunOperationsTask,
+  safelySendOperationsAlert,
+} from "@/lib/email";
 const uuid = (v: unknown) => z.uuid().parse(v);
 const text = (v: unknown, min = 1, max = 5000, label = "This field") => {
   if (typeof v !== "string") throw new HttpError(400, `${label} is required.`);
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
       await mailer.send({
         id: `contact-${ticket.reference}`,
         to: process.env.CONTACT_RECIPIENT_EMAIL || business.supportEmail,
-        replyTo: email,
+        replyTo: business.supportEmail,
         subject: `Contact enquiry ${ticket.reference}: ${category}`,
         text: `From: ${email}\nCategory: ${category}\nReference: ${ticket.reference}\n\n${message}`,
         accountLink: false,
@@ -202,10 +206,34 @@ export async function POST(request: NextRequest) {
     } else if (action === "submit") {
       if (data.accepted !== "on")
         throw new HttpError(400, "Confirm the seller declaration.");
+      const propertyId = uuid(body.id);
       await rpc("submit_property", {
-        p_id: uuid(body.id),
+        p_id: propertyId,
         p_agreement: uuid(data.agreement_id),
       });
+      after(() =>
+        safelyRunOperationsTask(`listing-${propertyId}`, async () => {
+          const [property] = await serverQuery<{
+            reference: string;
+            title: string;
+            revision: number;
+            published_at: string | null;
+          }>(
+            "select reference,title,revision,published_at::text from public.properties where id=$1",
+            [propertyId],
+          );
+          if (!property) return;
+          const isRevision = Boolean(property.published_at);
+          await safelySendOperationsAlert({
+            id: `listing-${propertyId}-${property.revision}`,
+            subject: isRevision
+              ? `Edited advert awaiting review: ${property.reference}`
+              : `New advert awaiting review: ${property.reference}`,
+            text: `${property.title}\n\nSeller: ${user.email || "Account email unavailable"}\nReference: ${property.reference}\n\n${isRevision ? "An approved advert was edited and resubmitted." : "A new advert was submitted."} It is ready for moderation.`,
+            adminPath: `/admin/property/${propertyId}`,
+          });
+        }),
+      );
     } else if (action === "checkout") {
       if (!features.paidListings)
         throw new HttpError(
@@ -259,6 +287,56 @@ export async function POST(request: NextRequest) {
             ? "Property saved."
             : "Property removed from saved properties.",
         });
+      }
+      const requestId = z.uuid().safeParse(result);
+      if (requestId.success) {
+        const propertyId = uuid(body.property);
+        const alertDetails = {
+          enquire: {
+            subject: "New property enquiry",
+            path: "/admin/enquiries",
+            label: "Enquiry",
+          },
+          inspection: {
+            subject: "New inspection request",
+            path: "/admin/inspections",
+            label: "Inspection request",
+          },
+          offer: {
+            subject: "New property offer",
+            path: "/admin/transactions",
+            label: "Offer",
+          },
+          report: {
+            subject: "New property report",
+            path: "/admin/reports",
+            label: "Report",
+          },
+        }[kind];
+        if (alertDetails)
+          after(() =>
+            safelyRunOperationsTask(`${kind}-${requestId.data}`, async () => {
+              const [property] = await serverQuery<{
+                reference: string;
+                title: string;
+                buyer_name: string;
+              }>(
+                `select property.reference,property.title,coalesce(profile.full_name,'') buyer_name
+               from public.properties property
+               left join public.profiles profile on profile.id=$2
+               where property.id=$1`,
+                [propertyId, user.id],
+              );
+              if (!property) return;
+              const message = String(data.message || "").trim();
+              await safelySendOperationsAlert({
+                id: `${kind}-${requestId.data}`,
+                subject: `${alertDetails.subject}: ${property.reference}`,
+                text: `${alertDetails.label} received for ${property.title}.\n\nProperty: ${property.reference}\nFrom: ${property.buyer_name || "Registered user"} (${user.email || "email unavailable"})${message ? `\n\nMessage:\n${message}` : ""}`,
+                adminPath: alertDetails.path,
+              });
+            }),
+          );
       }
     } else if (action === "moderate") {
       const propertyId = uuid(body.id);
