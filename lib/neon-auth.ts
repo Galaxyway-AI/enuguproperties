@@ -66,3 +66,65 @@ export function canonicalNeonAuth() {
 
   return canonicalInstance;
 }
+
+type EmailSignUpInput = {
+  email: string;
+  password: string;
+  name: string;
+  callbackURL: string;
+};
+
+type EmailSignUpResult = {
+  data: { user?: { id?: string } } | null;
+  error: {
+    code?: string;
+    message?: string;
+    status: number;
+    statusText?: string;
+  } | null;
+};
+
+/**
+ * Register without forwarding browser session cookies. Email verification does
+ * not create a session, and a clean server request avoids stale auth cookies
+ * changing Neon's CSRF/feature path. Keep the upstream code so the form can
+ * explain the real rejection instead of the SDK's generic 403 mapping.
+ */
+export async function signUpWithEmail(
+  input: EmailSignUpInput,
+): Promise<EmailSignUpResult> {
+  if (!authConfigured()) throw new Error("Neon Auth is not configured.");
+
+  const endpoint = new URL(
+    "sign-up/email",
+    `${process.env.NEON_AUTH_BASE_URL!.replace(/\/$/, "")}/`,
+  );
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: new URL(appUrl()).origin,
+    },
+    body: JSON.stringify(input),
+    signal: AbortSignal.timeout(15000),
+  });
+  const payload = (await response.json().catch(() => null)) as {
+    user?: { id?: string };
+    code?: string;
+    message?: string;
+  } | null;
+
+  if (!response.ok) {
+    return {
+      data: null,
+      error: {
+        code: payload?.code,
+        message: payload?.message || response.statusText,
+        status: response.status,
+        statusText: response.statusText,
+      },
+    };
+  }
+
+  return { data: payload, error: null };
+}

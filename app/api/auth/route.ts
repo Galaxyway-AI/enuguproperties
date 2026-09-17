@@ -1,7 +1,7 @@
 import { after, NextRequest } from "next/server";
 import { z } from "zod";
 import { configured } from "@/lib/supabase";
-import { canonicalNeonAuth } from "@/lib/neon-auth";
+import { canonicalNeonAuth, signUpWithEmail } from "@/lib/neon-auth";
 import {
   sameOrigin,
   rateLimit,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       const sellerType = z
         .enum(["owner", "agent", "developer", "buyer"])
         .parse(body.sellerType);
-      const { data, error } = await client.signUp.email({
+      const { data, error } = await signUpWithEmail({
         email,
         password,
         name,

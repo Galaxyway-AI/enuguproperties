@@ -38,6 +38,9 @@ export function registrationErrorMessage(error: unknown) {
   )
     return "Too many registration attempts were made. Wait 10 minutes, then try again with a freshly completed security check.";
 
+  if (code === "FEATURE_NOT_SUPPORTED")
+    return "Email registration is not enabled in the account service configuration. Please contact support@enuguproperties.com.";
+
   if (
     value.includes("origin") ||
     value.includes("callback") ||

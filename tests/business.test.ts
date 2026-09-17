@@ -92,6 +92,10 @@ test("registration errors explain common account-service failures", () => {
     /confirmation-link address/i,
   );
   assert.match(
+    registrationErrorMessage({ code: "FEATURE_NOT_SUPPORTED", status: 403 }),
+    /email registration is not enabled/i,
+  );
+  assert.match(
     registrationErrorMessage({ code: "FAILED_TO_CREATE_USER", status: 500 }),
     /could not save this registration/i,
   );
