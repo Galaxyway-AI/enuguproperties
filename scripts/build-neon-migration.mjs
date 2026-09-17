@@ -16,6 +16,8 @@ const sourceFiles = [
   "supabase/migrations/0013_staff_access.sql",
   "supabase/migrations/0014_listing_usability.sql",
   "supabase/migrations/0015_marketplace_listing_purposes.sql",
+  "supabase/migrations/0016_restore_public_listing_access.sql",
+  "supabase/migrations/0017_listing_availability.sql",
 ];
 
 const compatibility = `-- Neon compatibility layer for the original PostgreSQL schema.

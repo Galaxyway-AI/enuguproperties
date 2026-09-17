@@ -4,11 +4,11 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 test("PostgreSQL trust boundaries and lifecycle", async (t) => {
   const sql = new PGlite();
-  await sql.exec(`create role anon; create role authenticated; create role service_role bypassrls;
+  await sql.exec(`create role anon; create role anonymous; create role authenticated; create role service_role bypassrls;
  create schema auth; create table auth.users(id uuid primary key, raw_user_meta_data jsonb default '{}');
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('aal',coalesce(current_setting('request.jwt.claim.aal',true),'aal1'))$$;
- grant usage on schema auth to anon,authenticated,service_role; grant execute on all functions in schema auth to anon,authenticated,service_role;
+ grant usage on schema auth to anon,anonymous,authenticated,service_role; grant execute on all functions in schema auth to anon,anonymous,authenticated,service_role;
  create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);`);
   for (const f of [
     "0001_foundation.sql",
@@ -22,6 +22,8 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0013_staff_access.sql",
     "0014_listing_usability.sql",
     "0015_marketplace_listing_purposes.sql",
+    "0016_restore_public_listing_access.sql",
+    "0017_listing_availability.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -472,6 +474,48 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       [property],
     );
   });
+  await t.test(
+    "a lister can mark an approved advert rented and available without moderation",
+    async () => {
+      await as(seller);
+      await sql.query("select public.set_listing_availability($1,'rented')", [
+        property,
+      ]);
+      const rented = (
+        await sql.query<{ status: string; availability_status: string }>(
+          "select status,availability_status from public.properties where id=$1",
+          [property],
+        )
+      ).rows[0];
+      assert.deepEqual(rented, {
+        status: "live",
+        availability_status: "rented",
+      });
+
+      await as("", "aal1", "anon");
+      assert.equal(
+        (
+          await sql.query<{ availability_status: string }>(
+            "select availability_status from public.public_properties where id=$1",
+            [property],
+          )
+        ).rows[0].availability_status,
+        "rented",
+      );
+
+      await as(seller);
+      await sql.query(
+        "select public.set_listing_availability($1,'available')",
+        [property],
+      );
+      await assert.rejects(
+        sql.query("select public.set_listing_availability($1,'sold')", [
+          property,
+        ]),
+        /rental advert/i,
+      );
+    },
+  );
   await t.test(
     "public projection excludes precise location and account identity",
     async () => {

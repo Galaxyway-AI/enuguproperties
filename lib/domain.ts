@@ -13,6 +13,7 @@ export const categoryLabels: Record<Category, string> = {
 };
 export const listingPurposes = ["sale", "rent", "short-let"] as const;
 export type ListingPurpose = (typeof listingPurposes)[number];
+export type AvailabilityStatus = "available" | "sold" | "rented";
 export const listingPurposeLabels: Record<ListingPurpose, string> = {
   sale: "Buy",
   rent: "Rent",
@@ -64,6 +65,7 @@ export type PublicProperty = {
   images: string[];
   seller_type: string;
   status: string;
+  availability_status?: AvailabilityStatus;
   created_at: string;
   updated_at: string;
   featured: boolean;

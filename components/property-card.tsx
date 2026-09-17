@@ -30,6 +30,11 @@ export function PropertyCard({ property: p }: { property: PublicProperty }) {
           )}
         </Link>
         <div className="image-badges">
+          {p.availability_status && p.availability_status !== "available" && (
+            <span className="badge unavailable">
+              {p.availability_status === "sold" ? "SOLD" : "RENTED"}
+            </span>
+          )}
           {p.featured && (
             <span className="badge advertising">Featured · Ad</span>
           )}

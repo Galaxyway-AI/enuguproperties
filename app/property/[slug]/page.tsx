@@ -32,6 +32,10 @@ export default async function Property({
 }) {
   const p = await getProperty((await params).slug);
   if (!p) notFound();
+  const unavailable =
+    p.availability_status === "sold" || p.availability_status === "rented";
+  const availabilityLabel =
+    p.availability_status === "sold" ? "SOLD" : "RENTED";
   const label = (value: string) =>
     value
       .replaceAll("-", " ")
@@ -96,6 +100,11 @@ export default async function Property({
       <div className="detail-grid">
         <div>
           <div className="detail-title">
+            {unavailable && (
+              <span className="badge unavailable availability-badge-detail">
+                {availabilityLabel}
+              </span>
+            )}
             <span className="eyebrow">
               {p.category.replaceAll("-", " ")}{" "}
               {listingPurposeDescription(p.listing_purpose)} · {p.reference}
@@ -105,6 +114,12 @@ export default async function Property({
               <MapPin size={17} />
               {p.area}, Enugu · Area location only
             </p>
+            {unavailable && (
+              <p className="availability-message">
+                The lister has marked this property{" "}
+                {availabilityLabel.toLowerCase()}.
+              </p>
+            )}
           </div>
           <div className="spec-grid">
             {p.bedrooms !== null && (
@@ -243,7 +258,9 @@ export default async function Property({
             Enquiries are managed through Enugu Properties so your introduction
             has a clear record.
           </p>
-          {!p.demo && ["live", "under_offer"].includes(p.status) ? (
+          {!p.demo &&
+          !unavailable &&
+          ["live", "under_offer"].includes(p.status) ? (
             <>
               {features.inspections && (
                 <Link

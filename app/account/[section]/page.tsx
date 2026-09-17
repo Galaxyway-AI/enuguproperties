@@ -185,7 +185,7 @@ export default async function AccountSection({
   if (section === "listings") {
     const { data: rows, error } = await c
       .from("properties")
-      .select("id,title,reference,status,price_minor")
+      .select("id,title,reference,status,price_minor,availability_status")
       .eq("seller_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -213,6 +213,11 @@ export default async function AccountSection({
                   <span className="status">
                     {p.status.replaceAll("_", " ")}
                   </span>
+                  {p.availability_status !== "available" && (
+                    <span className="badge unavailable">
+                      {p.availability_status === "sold" ? "SOLD" : "RENTED"}
+                    </span>
+                  )}
                 </div>
               </Link>
             ))}

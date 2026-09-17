@@ -121,6 +121,42 @@ export default async function Listing({
           <p>{r.reason}</p>
         </div>
       ))}
+      {p.published_at &&
+        !["archived", "withdrawn", "rejected"].includes(p.status) && (
+          <section className="panel availability-control">
+            <div>
+              <span className="eyebrow">ADVERT AVAILABILITY</span>
+              <h2 style={{ fontSize: 24 }}>
+                Is this property still available?
+              </h2>
+              <p>
+                Update this whenever the property is sold or rented. The red
+                badge appears immediately and does not need admin approval.
+                Choose Available again to remove the badge.
+              </p>
+            </div>
+            <ActionForm
+              action="listing-availability"
+              extra={{ id }}
+              label="Update availability"
+            >
+              <label>
+                Advert status
+                <select
+                  name="availability_status"
+                  defaultValue={p.availability_status || "available"}
+                >
+                  <option value="available">Available</option>
+                  {p.listing_purpose === "sale" ? (
+                    <option value="sold">Sold</option>
+                  ) : (
+                    <option value="rented">Rented</option>
+                  )}
+                </select>
+              </label>
+            </ActionForm>
+          </section>
+        )}
       <div className="record-list">
         <section className="panel">
           <h2 style={{ fontSize: 24 }}>1. Advertising plan</h2>

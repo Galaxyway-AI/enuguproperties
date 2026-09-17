@@ -203,6 +203,21 @@ export async function POST(request: NextRequest) {
         ok: true,
         url: `/account/listings/${propertyId}/edit`,
       });
+    } else if (action === "listing-availability") {
+      const availability = z
+        .enum(["available", "sold", "rented"])
+        .parse(data.availability_status);
+      await rpc("set_listing_availability", {
+        p_id: uuid(body.id),
+        p_availability: availability,
+      });
+      return Response.json({
+        ok: true,
+        message:
+          availability === "available"
+            ? "The advert is available again. The badge has been removed."
+            : `The advert is now marked ${availability}. Visitors can see the badge immediately.`,
+      });
     } else if (action === "submit") {
       if (data.accepted !== "on")
         throw new HttpError(400, "Confirm the seller declaration.");
