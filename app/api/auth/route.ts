@@ -1,7 +1,7 @@
 import { after, NextRequest } from "next/server";
 import { z } from "zod";
 import { configured } from "@/lib/supabase";
-import { neonAuth } from "@/lib/neon-auth";
+import { canonicalNeonAuth } from "@/lib/neon-auth";
 import {
   sameOrigin,
   rateLimit,
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const action = z
       .enum(["login", "register", "reset", "update-password", "logout"])
       .parse(body.action);
-    const client = neonAuth();
+    const client = canonicalNeonAuth();
     if (action === "logout") {
       await client.signOut();
       return Response.json({ ok: true });
