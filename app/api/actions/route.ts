@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await client.auth.getUser();
     if (action === "contact") {
-      await checkBot(body.token, "contact");
+      await checkBot(body.token, "contact", request.url);
       const email = z.email().parse(data.email);
       const category = text(data.category, 3, 60).replace(/[\r\n]+/g, " ");
       const message = text(data.message, 20, 5000, "Your message");
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
         );
       if (kind === "offer" && !features.offers)
         throw new HttpError(404, "Offers are not available.");
-      if (kind !== "save") await checkBot(body.token, "buyer");
+      if (kind !== "save") await checkBot(body.token, "buyer", request.url);
       if (kind === "offer") data.amount_minor = toMinor(String(data.amount));
       if (kind !== "save") text(data.message, kind === "inspection" ? 0 : 10);
       result = await rpc("buyer_action", {

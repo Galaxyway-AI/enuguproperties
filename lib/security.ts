@@ -95,7 +95,13 @@ export function isDatabaseActionError(error: unknown) {
 export function sameOrigin(request: NextRequest) {
   const configuredUrl =
     process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000";
-  if (!isTrustedAppOrigin(request.headers.get("origin"), configuredUrl))
+  if (
+    !isTrustedAppOrigin(
+      request.headers.get("origin"),
+      configuredUrl,
+      request.url,
+    )
+  )
     throw new HttpError(
       403,
       "This request could not be verified. Reload the page and try again.",
@@ -118,7 +124,11 @@ export async function rateLimit(key: string, limit = 15, seconds = 60) {
       "Too many requests. Please wait a moment and try again.",
     );
 }
-export async function checkBot(token: unknown, expectedAction: string) {
+export async function checkBot(
+  token: unknown,
+  expectedAction: string,
+  requestUrl?: string,
+) {
   if (!process.env.TURNSTILE_SECRET_KEY) {
     if (process.env.NODE_ENV === "production")
       throw new HttpError(503, "This form is not available yet.");
@@ -154,7 +164,7 @@ export async function checkBot(token: unknown, expectedAction: string) {
   if (
     !validTurnstileResult(
       result,
-      trustedAppHostnames(process.env.NEXT_PUBLIC_APP_URL!),
+      trustedAppHostnames(process.env.NEXT_PUBLIC_APP_URL!, requestUrl),
       expectedAction,
     )
   )

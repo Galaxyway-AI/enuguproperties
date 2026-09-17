@@ -89,16 +89,29 @@ test("official apex and www origins are accepted without trusting other hosts", 
   assert.equal(
     isTrustedAppOrigin(
       "https://www.enuguproperties.com",
-      "https://enuguproperties.com",
+      "https://enugu-properties.emailgalaxyway.workers.dev",
+      "https://enuguproperties.com/api/auth",
     ),
     true,
   );
   assert.equal(
     isTrustedAppOrigin(
       "https://attacker.example",
-      "https://enuguproperties.com",
+      "https://enugu-properties.emailgalaxyway.workers.dev",
+      "https://enuguproperties.com/api/auth",
     ),
     false,
+  );
+  assert.deepEqual(
+    trustedAppHostnames(
+      "https://enugu-properties.emailgalaxyway.workers.dev",
+      "https://www.enuguproperties.com/register",
+    ),
+    [
+      "enugu-properties.emailgalaxyway.workers.dev",
+      "enuguproperties.com",
+      "www.enuguproperties.com",
+    ],
   );
   assert.deepEqual(trustedAppOrigins("https://staging.example"), [
     "https://staging.example",

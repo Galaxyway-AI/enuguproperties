@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       action === "update-password" ? "" : z.email().max(254).parse(body.email);
     await rateLimit(`auth-global:${action}`, 100, 60);
     await rateLimit(`auth:${action}:${email}`, 5, 300);
-    await checkBot(body.token, action);
+    await checkBot(body.token, action, request.url);
     if (action === "reset") {
       await client.requestPasswordReset({
         email,
