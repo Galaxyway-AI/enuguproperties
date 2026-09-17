@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { serverQuery } from "./server-db";
 import { validTurnstileResult, type TurnstileResult } from "./turnstile";
 import type { z } from "zod";
+import { isTrustedAppOrigin, trustedAppHostnames } from "./app-origins";
 export class HttpError extends Error {
   constructor(
     public status: number,
@@ -92,10 +93,9 @@ export function isDatabaseActionError(error: unknown) {
   return Boolean(code || databaseErrorMessage(error));
 }
 export function sameOrigin(request: NextRequest) {
-  const expected = new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000",
-  ).origin;
-  if (request.headers.get("origin") !== expected)
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000";
+  if (!isTrustedAppOrigin(request.headers.get("origin"), configuredUrl))
     throw new HttpError(
       403,
       "This request could not be verified. Reload the page and try again.",
@@ -154,7 +154,7 @@ export async function checkBot(token: unknown, expectedAction: string) {
   if (
     !validTurnstileResult(
       result,
-      new URL(process.env.NEXT_PUBLIC_APP_URL!).hostname,
+      trustedAppHostnames(process.env.NEXT_PUBLIC_APP_URL!),
       expectedAction,
     )
   )

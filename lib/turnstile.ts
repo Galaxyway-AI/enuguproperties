@@ -6,12 +6,16 @@ export type TurnstileResult = {
 
 export function validTurnstileResult(
   result: TurnstileResult,
-  expectedHostname: string,
+  expectedHostname: string | readonly string[],
   expectedAction: string,
 ) {
+  const hostnames = Array.isArray(expectedHostname)
+    ? expectedHostname
+    : [expectedHostname];
   return (
     result.success === true &&
-    result.hostname === expectedHostname &&
+    typeof result.hostname === "string" &&
+    hostnames.includes(result.hostname) &&
     result.action === expectedAction
   );
 }

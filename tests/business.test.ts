@@ -7,6 +7,11 @@ import {
   whatsappUrl,
 } from "../lib/business";
 import { validTurnstileResult } from "../lib/turnstile";
+import {
+  isTrustedAppOrigin,
+  trustedAppHostnames,
+  trustedAppOrigins,
+} from "../lib/app-origins";
 
 test("confirmed business identity and contact routing are canonical", () => {
   assert.equal(business.legalName, "MAGENCY ONLINE SOLUTIONS LTD.");
@@ -56,10 +61,46 @@ test("Turnstile requires success, hostname and action", () => {
   assert.equal(validTurnstileResult(valid, "staging.example", "reset"), false);
   assert.equal(
     validTurnstileResult(
+      { ...valid, hostname: "www.enuguproperties.com" },
+      ["enuguproperties.com", "www.enuguproperties.com"],
+      "register",
+    ),
+    true,
+  );
+  assert.equal(
+    validTurnstileResult(
       { ...valid, success: false },
       "staging.example",
       "register",
     ),
     false,
   );
+});
+
+test("official apex and www origins are accepted without trusting other hosts", () => {
+  assert.deepEqual(trustedAppOrigins("https://enuguproperties.com"), [
+    "https://enuguproperties.com",
+    "https://www.enuguproperties.com",
+  ]);
+  assert.deepEqual(trustedAppHostnames("https://enuguproperties.com"), [
+    "enuguproperties.com",
+    "www.enuguproperties.com",
+  ]);
+  assert.equal(
+    isTrustedAppOrigin(
+      "https://www.enuguproperties.com",
+      "https://enuguproperties.com",
+    ),
+    true,
+  );
+  assert.equal(
+    isTrustedAppOrigin(
+      "https://attacker.example",
+      "https://enuguproperties.com",
+    ),
+    false,
+  );
+  assert.deepEqual(trustedAppOrigins("https://staging.example"), [
+    "https://staging.example",
+  ]);
 });
