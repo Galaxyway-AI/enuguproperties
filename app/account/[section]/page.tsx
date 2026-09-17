@@ -332,8 +332,17 @@ export default async function AccountSection({
                 <span>
                   {new Date(row.created_at).toLocaleDateString("en-GB")}
                 </span>
-                {row.amount_minor && <strong>{money(row.amount_minor)}</strong>}
+                {row.amount_minor !== null &&
+                  row.amount_minor !== undefined && (
+                    <strong>{money(row.amount_minor)}</strong>
+                  )}
               </div>
+              {section === "billing" && Number(row.discount_minor || 0) > 0 && (
+                <p>
+                  Original price {money(row.original_amount_minor)} · Promotion
+                  saved {money(row.discount_minor)}
+                </p>
+              )}
               {row.message && <p>{row.message}</p>}
               {row.conditions && <p>{row.conditions}</p>}
               {row.preferred_at && (

@@ -26,34 +26,67 @@ export default async function Listing({
     .eq("seller_id", user!.id)
     .maybeSingle();
   if (!p) notFound();
-  const [plans, docs, media, types, agreement, reviews, profile] =
-    await Promise.all([
-      getPlans(),
-      client
-        .from("property_documents")
-        .select("id,original_name,type_id")
-        .eq("property_id", id),
-      client.from("property_media").select("id,alt,kind").eq("property_id", id),
-      client.from("document_types").select("*"),
-      client
-        .from("agreement_versions")
-        .select("id,version,content")
-        .eq("kind", "seller")
-        .eq("active", true)
-        .eq("legal_approved", true)
-        .limit(1)
-        .maybeSingle(),
-      client
-        .from("moderation_reviews")
-        .select("decision,reason,created_at")
-        .eq("property_id", id)
-        .order("created_at", { ascending: false }),
-      client
-        .from("profiles")
-        .select("full_name,phone")
-        .eq("id", user.id)
-        .maybeSingle(),
-    ]);
+  const [
+    plans,
+    docs,
+    media,
+    types,
+    agreement,
+    reviews,
+    profile,
+    promotionQuoteResult,
+    paidOrders,
+  ] = await Promise.all([
+    getPlans(),
+    client
+      .from("property_documents")
+      .select("id,original_name,type_id")
+      .eq("property_id", id),
+    client.from("property_media").select("id,alt,kind").eq("property_id", id),
+    client.from("document_types").select("*"),
+    client
+      .from("agreement_versions")
+      .select("id,version,content")
+      .eq("kind", "seller")
+      .eq("active", true)
+      .eq("legal_approved", true)
+      .limit(1)
+      .maybeSingle(),
+    client
+      .from("moderation_reviews")
+      .select("decision,reason,created_at")
+      .eq("property_id", id)
+      .order("created_at", { ascending: false }),
+    client
+      .from("profiles")
+      .select("full_name,phone")
+      .eq("id", user.id)
+      .maybeSingle(),
+    p.plan_id !== "free"
+      ? client.rpc("quote_listing_promotion", {
+          p_property: id,
+          p_code: null,
+        })
+      : Promise.resolve({ data: null, error: null }),
+    client
+      .from("orders")
+      .select(
+        "id,status,plan_id,original_amount_minor,discount_minor,amount_minor,promotion_id",
+      )
+      .eq("property_id", id)
+      .eq("plan_id", p.plan_id)
+      .eq("status", "paid")
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
+  const promotionQuote = promotionQuoteResult.data as {
+    code?: string;
+    name?: string;
+    original_amount_minor?: number;
+    discount_minor?: number;
+    final_amount_minor?: number;
+  } | null;
+  const paidOrder = paidOrders.data?.[0];
   const selectedPlan = plans.find((plan) => plan.id === p.plan_id);
   const imageCount =
     media.data?.filter((item) => item.kind === "image").length || 0;
@@ -269,12 +302,60 @@ export default async function Listing({
         </section>
         <section className="panel">
           <h2 style={{ fontSize: 24 }}>4. Payment and submission</h2>
-          {p.plan_id !== "free" && features.paidListings && (
+          {p.plan_id !== "free" && paidOrder && (
+            <div className="notice success" role="status">
+              <strong>Advertising plan activated.</strong>
+              <p>
+                {paidOrder.discount_minor > 0
+                  ? `${money(paidOrder.discount_minor)} promotion applied. `
+                  : ""}
+                Your {selectedPlan?.name || p.plan_id} plan is ready. Complete
+                the remaining listing requirements and submit it for review.
+              </p>
+            </div>
+          )}
+          {p.plan_id !== "free" && !paidOrder && features.paidListings && (
             <ActionForm
               action="checkout"
               extra={{ id }}
-              label="Pay securely with Kora"
-            />
+              label={
+                promotionQuote?.final_amount_minor === 0
+                  ? "Apply free Plus offer"
+                  : "Continue to secure payment"
+              }
+            >
+              {Number(promotionQuote?.discount_minor || 0) > 0 && (
+                <div className="notice success">
+                  <strong>{promotionQuote?.name}</strong>
+                  <p>
+                    Normal price:{" "}
+                    {money(promotionQuote?.original_amount_minor || 0)} ·
+                    Discount: {money(promotionQuote?.discount_minor || 0)} ·
+                    <strong>
+                      {" "}
+                      You pay {money(promotionQuote?.final_amount_minor || 0)}
+                    </strong>
+                  </p>
+                  {promotionQuote?.code === "FIRSTPLUS" && (
+                    <p>One free Plus advert for your first property.</p>
+                  )}
+                </div>
+              )}
+              <label>
+                Promotion code (optional)
+                <input
+                  name="promotion_code"
+                  maxLength={30}
+                  pattern="[A-Za-z0-9_-]*"
+                  autoCapitalize="characters"
+                  placeholder="Enter a discount code"
+                />
+              </label>
+              <p className="form-caption">
+                Eligible first-listing offers apply automatically. Enter a code
+                only when Enugu Properties has issued one to you.
+              </p>
+            </ActionForm>
           )}
           {p.plan_id !== "free" && !features.paidListings && (
             <div className="notice">

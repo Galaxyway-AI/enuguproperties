@@ -50,6 +50,7 @@ export default async function AdminLayout({
     ["enquiries", "Enquiries", "support"],
     ["transactions", "Transactions", "transactions"],
     ["payments", "Payments", "finance"],
+    ["promotions", "Promotions", "settings"],
     ["commissions", "Commissions", "finance"],
     ["support", "Support", "support"],
     ["reports", "Reports", "moderate"],

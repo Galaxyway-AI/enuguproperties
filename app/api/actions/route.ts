@@ -255,9 +255,18 @@ export async function POST(request: NextRequest) {
           503,
           "Paid advertising plans are launching shortly.",
         );
+      const order = await rpc("create_order", {
+        p_property: uuid(body.id),
+        p_code: text(data.promotion_code || "", 0, 30),
+      });
+      if (order.amount_minor === 0 && order.status === "paid")
+        return Response.json({
+          ok: true,
+          message:
+            "Your free advertising offer has been applied. You can now submit the listing for review.",
+        });
       if (!process.env.KORAPAY_SECRET_KEY)
         throw new HttpError(503, "Advertising checkout is not available yet.");
-      const order = await rpc("create_order", { p_property: uuid(body.id) });
       const url = await kora.initialise({
         reference: order.reference,
         amount_minor: order.amount_minor,
@@ -462,6 +471,66 @@ export async function POST(request: NextRequest) {
         p_stage: text(data.stage || "buyer_qualified"),
         p_summary: text(data.summary, 10),
         p_sale: data.sale_price ? toMinor(data.sale_price) : null,
+      });
+    } else if (action === "promotion-admin") {
+      const discountKind = z
+        .enum(["percent", "fixed", "free"])
+        .parse(data.discount_kind);
+      const discountValue =
+        discountKind === "free"
+          ? 0
+          : discountKind === "percent"
+            ? z.coerce
+                .number()
+                .int()
+                .min(1)
+                .max(100)
+                .parse(data.discount_value) * 100
+            : toMinor(String(data.discount_value));
+      let restrictedUserId = body.restrictedUserId
+        ? uuid(body.restrictedUserId)
+        : "";
+      const restrictedEmail = String(data.restricted_email || "").trim();
+      if (restrictedEmail) {
+        const email = z.email().parse(restrictedEmail);
+        const [account] = await serverQuery<{ id: string }>(
+          `select id from neon_auth."user" where lower(email)=lower($1) limit 1`,
+          [email],
+        );
+        if (!account)
+          throw new HttpError(
+            400,
+            "No registered account was found for that restricted email address.",
+          );
+        restrictedUserId = account.id;
+      }
+      await rpc("manage_promotion", {
+        p_id: optionalId(body.id),
+        p_data: {
+          code: text(data.code, 3, 30, "Promotion code").toUpperCase(),
+          name: text(data.name, 3, 120, "Promotion name"),
+          discount_kind: discountKind,
+          discount_value: discountValue,
+          plan_id: z.enum(["", "plus", "premium"]).parse(data.plan_id || ""),
+          starts_at: data.starts_at || "",
+          ends_at: data.ends_at || "",
+          max_redemptions: optionalNumber(data.max_redemptions, 1, 1000000),
+          per_user_limit: z.coerce
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .parse(data.per_user_limit || 1),
+          first_listing_only: data.first_listing_only === "on",
+          automatic: data.automatic === "on",
+          restricted_user_id: restrictedUserId,
+          active: data.active === "true",
+        },
+      });
+      return Response.json({
+        ok: true,
+        message:
+          "Promotion saved and is ready to use under its configured rules.",
       });
     } else if (action === "config")
       await rpc("admin_config", {

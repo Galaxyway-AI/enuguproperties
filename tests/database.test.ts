@@ -24,6 +24,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0015_marketplace_listing_purposes.sql",
     "0016_restore_public_listing_access.sql",
     "0017_listing_availability.sql",
+    "0018_advertising_promotions.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -614,6 +615,129 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     },
   );
   await t.test(
+    "first Plus advert is free and discount codes preserve audited amounts",
+    async () => {
+      await as(other);
+      const first = (
+        await sql.query<{ id: string }>(
+          "select public.save_property(null,$1::jsonb) id",
+          [
+            JSON.stringify({
+              ...payload,
+              title: "First launch offer property",
+            }),
+          ],
+        )
+      ).rows[0].id;
+      await sql.query("select public.select_plan($1,'plus')", [first]);
+      const quote = (
+        await sql.query<{ quote: Record<string, unknown> }>(
+          "select public.quote_listing_promotion($1,null) quote",
+          [first],
+        )
+      ).rows[0].quote;
+      assert.equal(quote.code, "FIRSTPLUS");
+      assert.equal(Number(quote.final_amount_minor), 0);
+      const freeOrder = (
+        await sql.query<{ amount_minor: number; status: string }>(
+          "select (public.create_order($1)).*",
+          [first],
+        )
+      ).rows[0];
+      assert.equal(Number(freeOrder.amount_minor), 0);
+      assert.equal(freeOrder.status, "paid");
+      await as("", "aal1", "service_role");
+      assert.equal(
+        (
+          await sql.query<{ status: string }>(
+            "select status from public.promotion_redemptions where property_id=$1",
+            [first],
+          )
+        ).rows[0].status,
+        "redeemed",
+      );
+
+      await as(staff);
+      const promotion = (
+        await sql.query<{ id: string }>(
+          `select public.manage_promotion(null,$1::jsonb) id`,
+          [
+            JSON.stringify({
+              code: "WELCOME50",
+              name: "Welcome half price",
+              discount_kind: "percent",
+              discount_value: 5000,
+              plan_id: "plus",
+              starts_at: new Date(Date.now() - 60000).toISOString(),
+              ends_at: "",
+              max_redemptions: "10",
+              per_user_limit: 1,
+              first_listing_only: false,
+              automatic: false,
+              restricted_user_id: "",
+              active: true,
+            }),
+          ],
+        )
+      ).rows[0].id;
+      assert.ok(promotion);
+
+      await as(other);
+      const secondDiscounted = (
+        await sql.query<{ id: string }>(
+          "select public.save_property(null,$1::jsonb) id",
+          [JSON.stringify({ ...payload, title: "Discounted advert property" })],
+        )
+      ).rows[0].id;
+      await sql.query("select public.select_plan($1,'plus')", [
+        secondDiscounted,
+      ]);
+      const discountedOrder = (
+        await sql.query<{
+          reference: string;
+          original_amount_minor: number;
+          discount_minor: number;
+          amount_minor: number;
+        }>("select (public.create_order($1,'welcome50')).*", [secondDiscounted])
+      ).rows[0];
+      assert.equal(Number(discountedOrder.original_amount_minor), 500000);
+      assert.equal(Number(discountedOrder.discount_minor), 250000);
+      assert.equal(Number(discountedOrder.amount_minor), 250000);
+      await as("", "aal1", "service_role");
+      await sql.query(
+        "select public.fulfil_payment($1,'discount-provider',250000,'NGN')",
+        [discountedOrder.reference],
+      );
+      assert.equal(
+        (
+          await sql.query<{ status: string }>(
+            "select status from public.promotion_redemptions where property_id=$1",
+            [secondDiscounted],
+          )
+        ).rows[0].status,
+        "redeemed",
+      );
+
+      await as(other);
+      const third = (
+        await sql.query<{ id: string }>(
+          "select public.save_property(null,$1::jsonb) id",
+          [
+            JSON.stringify({
+              ...payload,
+              title: "Promotion reuse test property",
+            }),
+          ],
+        )
+      ).rows[0].id;
+      await sql.query("select public.select_plan($1,'plus')", [third]);
+      await assert.rejects(
+        sql.query("select public.create_order($1,'WELCOME50')", [third]),
+        /already used/i,
+      );
+    },
+  );
+  await t.test(
     "payment fulfilment is server-only, amount checked and idempotent",
     async () => {
       await as(seller);
@@ -625,7 +749,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       ).rows[0].id;
       await sql.query("select public.select_plan($1,'plus')", [second]);
       const order = (
-        await sql.query<{ reference: string }>(
+        await sql.query<{ id: string; reference: string }>(
           "select (public.create_order($1)).*",
           [second],
         )
@@ -662,7 +786,8 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       assert.equal(
         (
           await sql.query(
-            `select * from public.audit_logs where action='payment_paid'`,
+            `select * from public.audit_logs where action='payment_paid' and entity_id=$1`,
+            [order.id],
           )
         ).rows.length,
         1,
