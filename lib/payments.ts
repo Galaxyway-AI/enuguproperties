@@ -1,11 +1,15 @@
 import "server-only";
-import { verifyKoraPaymentSignature, paymentAmountToMinor } from "./payment-signature";
+import {
+  verifyKoraPaymentSignature,
+  paymentAmountToMinor,
+} from "./payment-signature";
 import { appUrl } from "./business";
 export interface PaymentProvider {
   initialise(order: {
     reference: string;
     amount_minor: number;
     email: string;
+    purpose?: "listing" | "featured";
   }): Promise<string>;
   verify(reference: string): Promise<{
     id: string;
@@ -57,16 +61,14 @@ export const kora: PaymentProvider = {
       amount: order.amount_minor / 100,
       currency: "NGN",
       customer: { email: order.email },
-      narration: `Enugu Properties advertising · ${order.reference}`,
+      narration: `${order.purpose === "featured" ? "Enugu Properties featured advert" : "Enugu Properties advertising"} · ${order.reference}`,
       notification_url: appUrl("/api/payments/webhook"),
       redirect_url: appUrl("/api/payments/return"),
-      metadata: { purpose: "listing" },
+      metadata: { purpose: order.purpose || "listing" },
     });
     const url = new URL(data.checkout_url);
     const checkoutHost =
-      mode() === "live"
-        ? "checkout.korapay.com"
-        : "test-checkout.korapay.com";
+      mode() === "live" ? "checkout.korapay.com" : "test-checkout.korapay.com";
     if (url.protocol !== "https:" || url.hostname !== checkoutHost)
       throw new Error("Invalid checkout destination.");
     return url.toString();

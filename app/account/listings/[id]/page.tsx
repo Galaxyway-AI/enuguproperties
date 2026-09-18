@@ -36,6 +36,7 @@ export default async function Listing({
     profile,
     promotionQuoteResult,
     paidOrders,
+    featuredStatusResult,
   ] = await Promise.all([
     getPlans(),
     client
@@ -75,9 +76,11 @@ export default async function Listing({
       )
       .eq("property_id", id)
       .eq("plan_id", p.plan_id)
+      .eq("purpose", "listing")
       .eq("status", "paid")
       .order("created_at", { ascending: false })
       .limit(1),
+    client.rpc("featured_status", { p_property: id }),
   ]);
   const promotionQuote = promotionQuoteResult.data as {
     code?: string;
@@ -87,6 +90,17 @@ export default async function Listing({
     final_amount_minor?: number;
   } | null;
   const paidOrder = paidOrders.data?.[0];
+  const featuredStatus = featuredStatusResult.data as {
+    active?: boolean;
+    active_until?: string | null;
+    scheduled_until?: string | null;
+    pending_checkout?: boolean;
+    paid_waiting_for_approval?: boolean;
+    included_days?: number;
+    included_redeemed?: boolean;
+    price_minor?: number;
+    duration_days?: number;
+  } | null;
   const selectedPlan = plans.find((plan) => plan.id === p.plan_id);
   const imageCount =
     media.data?.filter((item) => item.kind === "image").length || 0;
@@ -202,6 +216,9 @@ export default async function Listing({
                     {plan.name} · {money(plan.price_minor)} ·{" "}
                     {plan.duration_days} days · {plan.photo_limit} photos ·{" "}
                     {plan.video_limit} videos
+                    {plan.featured_days > 0
+                      ? ` · ${plan.featured_days} featured days included`
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -212,7 +229,88 @@ export default async function Listing({
           </p>
         </section>
         <section className="panel">
-          <h2 style={{ fontSize: 24 }}>2. Property photographs</h2>
+          <h2 style={{ fontSize: 24 }}>2. Featured homepage placement</h2>
+          <p>
+            Put this advert near the top of the home page for 7 days. Featured
+            placement costs {money(featuredStatus?.price_minor || 500000)} and
+            starts only when the advert is approved and live. Renewals begin
+            after the current featured period ends.
+          </p>
+          {Number(featuredStatus?.included_days || 0) > 0 &&
+            !featuredStatus?.included_redeemed && (
+              <div className="notice success" role="status">
+                <strong>
+                  Included with your {selectedPlan?.name || p.plan_id} plan
+                </strong>
+                <p>
+                  This plan includes {featuredStatus?.included_days} days of
+                  featured homepage placement. The included period starts when
+                  staff approve and publish the advert.
+                </p>
+              </div>
+            )}
+          {featuredStatus?.active && featuredStatus.active_until && (
+            <div className="notice success" role="status">
+              <strong>This advert is featured now.</strong>
+              <p>
+                Current featured placement runs until{" "}
+                {new Date(featuredStatus.active_until).toLocaleString("en-NG", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                  timeZone: "Africa/Lagos",
+                })}{" "}
+                WAT.
+              </p>
+            </div>
+          )}
+          {featuredStatus?.scheduled_until &&
+            featuredStatus.scheduled_until !== featuredStatus.active_until && (
+              <div className="notice" role="status">
+                Featured placement is booked through{" "}
+                {new Date(featuredStatus.scheduled_until).toLocaleString(
+                  "en-NG",
+                  {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                    timeZone: "Africa/Lagos",
+                  },
+                )}{" "}
+                WAT.
+              </div>
+            )}
+          {featuredStatus?.paid_waiting_for_approval && (
+            <div className="notice success" role="status">
+              Your featured placement is paid. Its 7-day period will begin as
+              soon as this advert is approved and published.
+            </div>
+          )}
+          {featuredStatus?.pending_checkout && (
+            <div className="notice" role="status">
+              A featured-placement payment is awaiting completion. Use the
+              button below to return to the secure checkout.
+            </div>
+          )}
+          {features.paidListings &&
+            !["rejected", "withdrawn", "sold", "expired", "archived"].includes(
+              p.status,
+            ) && (
+              <ActionForm
+                action="checkout-featured"
+                extra={{ id }}
+                label={
+                  featuredStatus?.active || featuredStatus?.scheduled_until
+                    ? "Renew featured advert · ₦5,000"
+                    : "Feature this advert · ₦5,000"
+                }
+              />
+            )}
+          <p className="form-caption">
+            Featured placement is advertising and does not indicate that the
+            property or its documents have been verified.
+          </p>
+        </section>
+        <section className="panel">
+          <h2 style={{ fontSize: 24 }}>3. Property photographs</h2>
           <div className="upload-list">
             {media.data?.map((m) => (
               <div key={m.id} className="upload-row">
@@ -273,7 +371,7 @@ export default async function Listing({
         </section>
         <section className="panel">
           <h2 style={{ fontSize: 24 }}>
-            3. Private ownership and authority evidence (optional)
+            4. Private ownership and authority evidence (optional)
           </h2>
           <p>
             You can submit your listing without documents. Add any evidence you
@@ -301,7 +399,7 @@ export default async function Listing({
           )}
         </section>
         <section className="panel">
-          <h2 style={{ fontSize: 24 }}>4. Payment and submission</h2>
+          <h2 style={{ fontSize: 24 }}>5. Payment and submission</h2>
           {p.plan_id !== "free" && paidOrder && (
             <div className="notice success" role="status">
               <strong>Advertising plan activated.</strong>

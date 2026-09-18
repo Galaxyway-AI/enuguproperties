@@ -47,8 +47,9 @@ export async function POST(request: NextRequest) {
           property_reference: string;
           title: string;
           email: string;
+          purpose: string;
         }>(
-          `select orders.reference,orders.amount_minor,orders.property_id,
+          `select orders.reference,orders.amount_minor,orders.property_id,orders.purpose,
                 properties.reference property_reference,properties.title,account.email
          from public.orders orders
          join public.properties properties on properties.id=orders.property_id
@@ -59,8 +60,8 @@ export async function POST(request: NextRequest) {
         if (!payment) return;
         await safelySendOperationsAlert({
           id: `payment-${payment.reference}`,
-          subject: `Advertising payment received: ${payment.property_reference}`,
-          text: `${payment.title}\n\nCustomer: ${payment.email}\nPayment reference: ${payment.reference}\nAmount: NGN ${(Number(payment.amount_minor) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          subject: `${payment.purpose === "featured" ? "Featured advert" : "Advertising"} payment received: ${payment.property_reference}`,
+          text: `${payment.title}\n\nProduct: ${payment.purpose === "featured" ? "7-day featured homepage placement" : "Property advertising plan"}\nCustomer: ${payment.email}\nPayment reference: ${payment.reference}\nAmount: NGN ${(Number(payment.amount_minor) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           adminPath: "/admin/payments",
         });
       }),

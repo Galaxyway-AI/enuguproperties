@@ -96,7 +96,8 @@ export default async function Pricing() {
                 {plan.featured_days > 0 && (
                   <li>
                     <Check size={17} />
-                    Featured exposure, subject to capacity
+                    {plan.featured_days}-day featured homepage placement
+                    included
                   </li>
                 )}
               </ul>

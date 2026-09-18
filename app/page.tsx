@@ -17,15 +17,15 @@ import {
   KeyRound,
   Gift,
 } from "lucide-react";
-import { getAreas, getProperties, isDemo } from "@/lib/catalogue";
+import { getAreas, getHomepageProperties, isDemo } from "@/lib/catalogue";
 import { SearchForm } from "@/components/search";
 import { PropertyCard } from "@/components/property-card";
 import { business } from "@/lib/business";
 export const dynamic = "force-dynamic";
 export default async function Home() {
-  const [areas, { properties }] = await Promise.all([
+  const [areas, properties] = await Promise.all([
     getAreas(),
-    getProperties(),
+    getHomepageProperties(6),
   ]);
   return (
     <>
@@ -173,9 +173,12 @@ export default async function Home() {
       <section className="section container">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">FIND YOUR PLACE</span>
-            <h2>A home. A plot. A possibility.</h2>
-            <p>Explore a selection of property across Enugu.</p>
+            <span className="eyebrow">FEATURED PROPERTIES</span>
+            <h2>Featured places across Enugu.</h2>
+            <p>
+              Paid and featured adverts appear first, with fresh listings added
+              when space is available.
+            </p>
           </div>
           <Link className="text-link" href="/properties">
             View all properties <ArrowUpRight size={19} />
@@ -192,7 +195,7 @@ export default async function Home() {
         </div>
         {properties.length ? (
           <div className="property-grid">
-            {properties.slice(0, 3).map((p) => (
+            {properties.map((p) => (
               <PropertyCard key={p.id} property={p} />
             ))}
           </div>

@@ -271,6 +271,28 @@ export async function POST(request: NextRequest) {
         reference: order.reference,
         amount_minor: order.amount_minor,
         email: user.email!,
+        purpose: "listing",
+      });
+      return Response.json({ url });
+    } else if (action === "checkout-featured") {
+      if (!features.paidListings)
+        throw new HttpError(
+          503,
+          "Featured advertising checkout is temporarily unavailable.",
+        );
+      const order = await rpc("create_featured_order", {
+        p_property: uuid(body.id),
+      });
+      if (!process.env.KORAPAY_SECRET_KEY)
+        throw new HttpError(
+          503,
+          "Featured advertising checkout is not available yet.",
+        );
+      const url = await kora.initialise({
+        reference: order.reference,
+        amount_minor: order.amount_minor,
+        email: user.email!,
+        purpose: "featured",
       });
       return Response.json({ url });
     } else if (action === "buyer") {

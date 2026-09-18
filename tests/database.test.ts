@@ -25,6 +25,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0016_restore_public_listing_access.sql",
     "0017_listing_availability.sql",
     "0018_advertising_promotions.sql",
+    "0019_featured_advertising.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -791,6 +792,107 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
           )
         ).rows.length,
         1,
+      );
+    },
+  );
+  await t.test(
+    "featured purchases wait for approval, Premium adds a free week and renewals queue",
+    async () => {
+      await as(seller);
+      const featuredProperty = (
+        await sql.query<{ id: string }>(
+          "select public.save_property(null,$1::jsonb) id",
+          [
+            JSON.stringify({
+              ...payload,
+              title: "Featured placement test property",
+            }),
+          ],
+        )
+      ).rows[0].id;
+      await sql.query("select public.select_plan($1,'premium')", [
+        featuredProperty,
+      ]);
+      const listingOrder = (
+        await sql.query<{ reference: string }>(
+          "select (public.create_order($1)).*",
+          [featuredProperty],
+        )
+      ).rows[0];
+      const featureOrder = (
+        await sql.query<{ reference: string; amount_minor: number }>(
+          "select (public.create_featured_order($1)).*",
+          [featuredProperty],
+        )
+      ).rows[0];
+      assert.equal(Number(featureOrder.amount_minor), 500000);
+
+      await as("", "aal1", "service_role");
+      await sql.query(
+        "select public.fulfil_payment($1,'featured-provider-1',500000,'NGN')",
+        [featureOrder.reference],
+      );
+      assert.equal(
+        (
+          await sql.query(
+            "select * from public.promotions where property_id=$1",
+            [featuredProperty],
+          )
+        ).rows.length,
+        0,
+      );
+      await sql.query(
+        "select public.fulfil_payment($1,'listing-provider-premium',1500000,'NGN')",
+        [listingOrder.reference],
+      );
+      await sql.query(
+        "update public.properties set status='live',published_at=now(),expires_at=now()+interval '60 days' where id=$1",
+        [featuredProperty],
+      );
+      let placements = (
+        await sql.query<{ starts_at: string; ends_at: string }>(
+          "select starts_at::text,ends_at::text from public.promotions where property_id=$1 order by starts_at",
+          [featuredProperty],
+        )
+      ).rows;
+      assert.equal(placements.length, 2);
+      assert.ok(
+        new Date(placements[1].ends_at).getTime() -
+          new Date(placements[0].starts_at).getTime() >=
+          14 * 86400000 - 1000,
+      );
+
+      await as(seller);
+      const renewal = (
+        await sql.query<{ reference: string }>(
+          "select (public.create_featured_order($1)).*",
+          [featuredProperty],
+        )
+      ).rows[0];
+      await as("", "aal1", "service_role");
+      await sql.query(
+        "select public.fulfil_payment($1,'featured-provider-2',500000,'NGN')",
+        [renewal.reference],
+      );
+      placements = (
+        await sql.query<{ starts_at: string; ends_at: string }>(
+          "select starts_at::text,ends_at::text from public.promotions where property_id=$1 order by starts_at",
+          [featuredProperty],
+        )
+      ).rows;
+      assert.equal(placements.length, 3);
+      assert.equal(
+        new Date(placements[2].starts_at).getTime(),
+        new Date(placements[1].ends_at).getTime(),
+      );
+      await as("", "aal1", "anon");
+      assert.equal(
+        (
+          await sql.query<{ id: string }>(
+            "select id from public.homepage_properties(6) limit 1",
+          )
+        ).rows[0].id,
+        featuredProperty,
       );
     },
   );

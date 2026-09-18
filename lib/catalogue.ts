@@ -140,6 +140,48 @@ export async function getProperties(filters: SearchFilters = {}) {
     pageSize,
   };
 }
+export async function getHomepageProperties(
+  limit = 6,
+): Promise<PublicProperty[]> {
+  const safeLimit = Math.min(24, Math.max(1, Math.trunc(limit)));
+  if (!configured()) {
+    const data = isDemo() ? [...demoProperties] : [];
+    const featured = data.filter((property) => property.featured);
+    const remaining = data.filter((property) => !property.featured);
+    return [...featured.sort(() => Math.random() - 0.5), ...remaining].slice(
+      0,
+      safeLimit,
+    );
+  }
+  const client = await db();
+  const { data, error } = await client.rpc("homepage_properties", {
+    p_limit: safeLimit,
+  });
+  if (error)
+    throw new Error(
+      "Featured properties are temporarily unavailable. Please try again.",
+    );
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  const saved =
+    user && data?.length
+      ? (
+          await client
+            .from("saved_properties")
+            .select("property_id")
+            .in(
+              "property_id",
+              data.map((property: PublicProperty) => property.id),
+            )
+        ).data
+      : [];
+  const savedIds = new Set(saved?.map((property) => property.property_id));
+  return (data || []).map((property: PublicProperty) => ({
+    ...property,
+    saved: savedIds.has(property.id),
+  }));
+}
 export async function getProperty(
   slug: string,
 ): Promise<PublicProperty | null> {
