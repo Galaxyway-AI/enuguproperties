@@ -2401,6 +2401,129 @@ textarea {
   }
 }
 
+.seo-page-heading {
+  background: linear-gradient(135deg, #f3f7f2 0%, #fbfaf5 100%);
+}
+.seo-results {
+  padding-bottom: 64px;
+}
+.seo-guidance {
+  background: var(--soft, #f5f6f1);
+  border-block: 1px solid var(--line);
+}
+.seo-guidance-grid {
+  display: grid;
+  gap: 48px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+}
+.seo-guidance h2 {
+  font-size: clamp(30px, 4vw, 48px);
+  letter-spacing: -1.6px;
+  line-height: 1.08;
+}
+.area-intent-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0 28px;
+}
+.area-intent-links a {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 14px;
+  text-decoration: none;
+}
+.editorial-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.editorial-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 310px;
+  padding: 30px;
+}
+.editorial-card > svg {
+  color: var(--green);
+  margin-bottom: 28px;
+}
+.editorial-card h2 {
+  font-size: 25px;
+  letter-spacing: -0.7px;
+  line-height: 1.15;
+}
+.editorial-card .text-link {
+  margin-top: auto;
+}
+.editorial-article {
+  max-width: 900px;
+}
+.editorial-article > header {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 38px;
+  padding: 28px 0 34px;
+}
+.editorial-article h1 {
+  font-size: clamp(38px, 6vw, 64px);
+  letter-spacing: -2.4px;
+  line-height: 1.04;
+  margin: 12px 0 18px;
+}
+.article-deck {
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1.55;
+}
+.article-byline {
+  color: var(--muted);
+  font-size: 13px !important;
+  margin-top: 18px;
+}
+.article-body {
+  margin-inline: auto;
+  max-width: 760px;
+}
+.article-body section {
+  margin-top: 42px;
+}
+.article-body li {
+  margin: 9px 0;
+}
+.seo-preview {
+  display: grid;
+  gap: 5px;
+}
+.seo-preview span {
+  color: #1a0dab;
+  font-size: 18px;
+}
+.seo-preview small {
+  color: var(--green);
+}
+.seo-preview p {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .seo-guidance-grid,
+  .editorial-grid {
+    grid-template-columns: 1fr;
+  }
+  .editorial-card {
+    min-height: 270px;
+    padding: 24px;
+  }
+  .editorial-article h1 {
+    letter-spacing: -1.4px;
+  }
+}
+
 @media (max-width: 650px) {
   .hero {
     display: flex;

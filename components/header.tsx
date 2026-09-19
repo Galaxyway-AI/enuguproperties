@@ -22,9 +22,9 @@ export function Header() {
     return () => controller.abort();
   }, [pathname]);
   const links = [
-    ["/properties?purpose=sale", "Buy"],
-    ["/properties?purpose=rent", "Rent"],
-    ["/properties?purpose=short-let", "Short lets"],
+    ["/property-for-sale/enugu", "Buy"],
+    ["/property-for-rent/enugu", "Rent"],
+    ["/short-lets/enugu", "Short lets"],
     ["/areas", "Explore Enugu"],
     ["/verification", "Our verification"],
   ];

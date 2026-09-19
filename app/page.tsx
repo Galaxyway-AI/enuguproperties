@@ -21,7 +21,15 @@ import { getAreas, getHomepageProperties, isDemo } from "@/lib/catalogue";
 import { SearchForm } from "@/components/search";
 import { PropertyCard } from "@/components/property-card";
 import { business } from "@/lib/business";
+import type { Metadata } from "next";
+import { jsonLd, siteUrl } from "@/lib/seo";
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Property for Sale & Rent in Enugu, Nigeria",
+  description: "Search houses, land, flats, commercial property, rentals and short lets in Enugu. Browse reviewed adverts and request inspections.",
+  alternates: { canonical: "/" },
+  openGraph: { url: "/", title: "Property for Sale & Rent in Enugu, Nigeria", description: "Search current property adverts across Enugu and understand the checks available before you proceed." },
+};
 export default async function Home() {
   const [areas, properties] = await Promise.all([
     getAreas(),
@@ -32,7 +40,7 @@ export default async function Home() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLd({
             "@context": "https://schema.org",
             "@type": "Organization",
             name: business.brandName,
@@ -40,9 +48,8 @@ export default async function Home() {
             taxID: business.rcNumber,
             email: business.supportEmail,
             telephone: business.whatsappE164,
-            url:
-              process.env.NEXT_PUBLIC_APP_URL || "https://enuguproperties.com",
-          }).replace(/</g, "\\u003c"),
+            url: siteUrl,
+          }),
         }}
       />
       <section className="marketplace-hero">
@@ -123,34 +130,34 @@ export default async function Home() {
             [
               HomeIcon,
               "Houses",
-              "/properties/houses?purpose=sale",
+              "/houses-for-sale/enugu",
               "Homes to buy",
             ],
             [
               Building2,
               "Flats & apartments",
-              "/properties?purpose=rent&category=houses&property_type=flat",
-              "Homes to rent",
+              "/flats-for-sale/enugu",
+              "Flats to buy",
             ],
             [
               Mountain,
               "Land & plots",
-              "/properties/land?purpose=sale",
+              "/land-for-sale/enugu",
               "Land for sale",
             ],
             [
               Store,
               "Commercial",
-              "/properties/commercial",
+              "/commercial-property/enugu",
               "Business property",
             ],
             [
               CalendarDays,
               "Short lets",
-              "/properties?purpose=short-let",
+              "/short-lets/enugu",
               "Book short stays",
             ],
-            [KeyRound, "Rentals", "/properties?purpose=rent", "Browse rentals"],
+            [KeyRound, "Rentals", "/property-for-rent/enugu", "Browse rentals"],
           ].map(([Icon, title, href, copy]) => {
             const TypeIcon = Icon as typeof HomeIcon;
             return (
@@ -188,9 +195,9 @@ export default async function Home() {
           <Link className="active" href="/properties">
             All properties
           </Link>
-          <Link href="/properties/houses">Houses</Link>
-          <Link href="/properties/land">Land</Link>
-          <Link href="/properties/commercial">Commercial</Link>
+          <Link href="/houses-for-sale/enugu">Houses</Link>
+          <Link href="/land-for-sale/enugu">Land</Link>
+          <Link href="/commercial-property/enugu">Commercial</Link>
           <Link href="/properties/new-developments">New developments</Link>
         </div>
         {properties.length ? (

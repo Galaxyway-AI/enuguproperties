@@ -34,9 +34,12 @@ export function Footer() {
         </div>
         <div>
           <h3>Find your place</h3>
-          <Link href="/properties/houses">Houses for sale</Link>
-          <Link href="/properties/land">Land for sale</Link>
-          <Link href="/properties/commercial">Commercial property</Link>
+          <Link href="/property-for-sale/enugu">Property for sale</Link>
+          <Link href="/houses-for-sale/enugu">Houses for sale</Link>
+          <Link href="/land-for-sale/enugu">Land for sale</Link>
+          <Link href="/property-for-rent/enugu">Property for rent</Link>
+          <Link href="/short-lets/enugu">Short lets</Link>
+          <Link href="/commercial-property/enugu">Commercial property</Link>
           <Link href="/areas">Explore Enugu</Link>
         </div>
         <div>
@@ -45,6 +48,7 @@ export function Footer() {
           <Link href="/how-it-works">How it works</Link>
           <Link href="/buying-from-abroad">Buying from abroad</Link>
           <Link href="/safety">Buyer safety</Link>
+          <Link href="/market-insights">Market insights</Link>
         </div>
         <div>
           <h3>Enugu Properties</h3>

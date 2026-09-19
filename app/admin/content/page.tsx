@@ -26,6 +26,12 @@ export default async function ContentEditor() {
             description: "",
             content: "",
             published: false,
+            author: "Enugu Properties Editorial Team",
+            seo_title: "",
+            meta_description: "",
+            social_image: "",
+            indexable: true,
+            canonical_override: "",
           },
         ].map((page, i) => (
           <section className="panel" key={i}>
@@ -54,6 +60,10 @@ export default async function ContentEditor() {
                 <textarea name="description" defaultValue={page.description} />
               </label>
               <label>
+                Author or editorial team
+                <input name="author" defaultValue={page.author || "Enugu Properties Editorial Team"} required minLength={2} maxLength={120} />
+              </label>
+              <label>
                 Page content
                 <textarea
                   name="content"
@@ -63,6 +73,34 @@ export default async function ContentEditor() {
                   rows={12}
                 />
               </label>
+              <div className="form-grid">
+                <label>
+                  SEO title override
+                  <input name="seo_title" defaultValue={page.seo_title || ""} maxLength={160} placeholder="Leave blank to use the page title" />
+                </label>
+                <label>
+                  Meta description override
+                  <textarea name="meta_description" defaultValue={page.meta_description || ""} maxLength={320} placeholder="Leave blank to use the introduction" />
+                </label>
+                <label>
+                  Social image URL
+                  <input name="social_image" type="url" defaultValue={page.social_image || ""} maxLength={500} />
+                </label>
+                <label>
+                  Search indexing
+                  <select name="indexable" defaultValue={String(page.indexable ?? true)}><option value="true">Index</option><option value="false">Noindex</option></select>
+                </label>
+              </div>
+              <label>
+                Canonical override
+                <input name="canonical_override" type="url" defaultValue={page.canonical_override || ""} placeholder="Normally leave blank" />
+              </label>
+              <div className="seo-preview panel">
+                <strong>Search preview</strong>
+                <span>{page.seo_title || page.title || "Page title"} | Enugu Properties</span>
+                <small>enuguproperties.com/{page.slug || "page-slug"}</small>
+                <p>{page.meta_description || page.description || "The page introduction will be used as the search description."}</p>
+              </div>
               <label>
                 Publication
                 <select name="published" defaultValue={String(page.published)}>

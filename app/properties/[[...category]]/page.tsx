@@ -23,6 +23,9 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { category } = await params;
   const query = await searchParams;
+  const page = Math.max(1, Number(query.page) || 1);
+  const nonPaginationKeys = Object.keys(query).filter((key) => key !== "page");
+  const path = `/properties${category?.length ? "/" + category.join("/") : ""}`;
   const purpose = ["sale", "rent", "short-let"].includes(query.purpose || "")
     ? (query.purpose as ListingPurpose)
     : "sale";
@@ -31,10 +34,9 @@ export async function generateMetadata({
       category?.[0] && categories.includes(category[0] as Category)
         ? `${categoryLabels[category[0] as Category]} to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`
         : `Property to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`,
-    alternates: {
-      canonical: `/properties${category?.length ? "/" + category.join("/") : ""}`,
-    },
-    robots: Object.keys(query).length
+    description: "Browse current property adverts in Enugu and filter by purpose, area, type, price and property details.",
+    alternates: { canonical: `${path}${page > 1 && nonPaginationKeys.length === 0 ? `?page=${page}` : ""}` },
+    robots: nonPaginationKeys.length
       ? { index: false, follow: true }
       : undefined,
   };

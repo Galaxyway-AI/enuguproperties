@@ -17,13 +17,7 @@ export async function proxy(request: NextRequest) {
   const response = authConfigured() && protectedRoute
     ? await neonAuth().middleware({ loginUrl: "/login" })(request)
     : NextResponse.next({ request });
-  const productionHost = new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000",
-  ).hostname;
-  if (
-    process.env.PREVIEW_MODE === "true" ||
-    productionHost !== "enuguproperties.com"
-  )
+  if (request.nextUrl.hostname !== "enuguproperties.com")
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   else {
     response.headers.set(

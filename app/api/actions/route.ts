@@ -15,6 +15,7 @@ import {
 } from "@/lib/security";
 import { toMinor } from "@/lib/domain";
 import { kora } from "@/lib/payments";
+import { notifyIndexNow, notifyIndexNowForProperty } from "@/lib/indexnow";
 import {
   mailer,
   safelyRunOperationsTask,
@@ -204,13 +205,15 @@ export async function POST(request: NextRequest) {
         url: `/account/listings/${propertyId}/edit`,
       });
     } else if (action === "listing-availability") {
+      const propertyId = uuid(body.id);
       const availability = z
         .enum(["available", "sold", "rented"])
         .parse(data.availability_status);
       await rpc("set_listing_availability", {
-        p_id: uuid(body.id),
+        p_id: propertyId,
         p_availability: availability,
       });
+      after(() => notifyIndexNowForProperty(propertyId));
       return Response.json({
         ok: true,
         message:
@@ -393,6 +396,7 @@ export async function POST(request: NextRequest) {
         p_decision: decision,
         p_reason: reason,
       });
+      after(() => notifyIndexNowForProperty(propertyId));
       let emailed = false;
       try {
         const [notice] = await serverQuery<{
@@ -606,13 +610,23 @@ export async function POST(request: NextRequest) {
         p_reference: text(data.reference, 3, 200),
       });
     else if (action === "content")
+      {
+      const slug = text(data.slug, 1, 120);
       await rpc("save_content", {
-        p_slug: text(data.slug, 1, 120),
+        p_slug: slug,
         p_title: text(data.title, 3, 160),
         p_description: text(data.description, 0, 500),
         p_content: text(data.content, 30, 20000),
         p_published: data.published === "true",
+        p_author: text(data.author || "Enugu Properties Editorial Team", 2, 120, "Author"),
+        p_seo_title: text(data.seo_title || "", 0, 160),
+        p_meta_description: text(data.meta_description || "", 0, 320),
+        p_social_image: text(data.social_image || "", 0, 500),
+        p_indexable: data.indexable !== "false",
+        p_canonical_override: text(data.canonical_override || "", 0, 500),
       });
+      if (data.published === "true") after(() => notifyIndexNow([`/${slug}`, "/sitemap.xml"]));
+      }
     else if (action === "document-link") {
       const { data: document, error } = await client
         .from("property_documents")

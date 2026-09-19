@@ -11,6 +11,12 @@ import {
 } from "@/lib/domain";
 import { Gallery } from "@/components/gallery";
 import { features, whatsappUrl } from "@/lib/business";
+import {
+  absoluteUrl,
+  jsonLd,
+  propertySeoDescription,
+  propertySeoTitle,
+} from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
@@ -18,11 +24,26 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const p = await getProperty((await params).slug);
+  const title = p ? propertySeoTitle(p) : "Property not found";
+  const description = p ? propertySeoDescription(p) : undefined;
   return {
-    title: p ? `${p.title} · ${p.area}` : "Property not found",
-    description: p?.description.slice(0, 155),
+    title,
+    description,
     alternates: { canonical: p ? `/property/${p.slug}` : undefined },
     robots: p?.demo ? { index: false, follow: false } : undefined,
+    openGraph: p
+      ? {
+          title,
+          description,
+          url: `/property/${p.slug}`,
+          type: "website",
+          images: p.images.map((image) => ({
+            url: new URL(image, absoluteUrl("/")).toString(),
+            alt: title,
+          })),
+        }
+      : undefined,
+    twitter: p?.images.length ? { card: "summary_large_image" } : undefined,
   };
 }
 export default async function Property({
@@ -66,9 +87,49 @@ export default async function Property({
         : label(String(value)),
     ]),
   ].filter(Boolean) as string[][];
+  const seoTitle = propertySeoTitle(p);
+  const propertyType = p.property_type === "flat" ? "Apartment" : p.category === "houses" ? "House" : "Place";
+  const schema = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+        { "@type": "ListItem", position: 2, name: "Properties", item: absoluteUrl("/properties") },
+        { "@type": "ListItem", position: 3, name: p.area, item: absoluteUrl(`/areas/${p.area_slug}`) },
+        { "@type": "ListItem", position: 4, name: seoTitle, item: absoluteUrl(`/property/${p.slug}`) },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "RealEstateListing",
+      name: seoTitle,
+      description: p.description,
+      url: absoluteUrl(`/property/${p.slug}`),
+      datePosted: p.created_at,
+      dateModified: p.updated_at,
+      image: p.images.map((image) => new URL(image, absoluteUrl("/")).toString()),
+      offers: {
+        "@type": "Offer",
+        price: Number(p.price_minor) / 100,
+        priceCurrency: "NGN",
+        availability: p.availability_status && p.availability_status !== "available" ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
+        url: absoluteUrl(`/property/${p.slug}`),
+      },
+      itemOffered: {
+        "@type": propertyType,
+        name: seoTitle,
+        numberOfBedrooms: p.bedrooms ?? undefined,
+        numberOfBathroomsTotal: p.bathrooms ?? undefined,
+        floorSize: p.building_sqm ? { "@type": "QuantitativeValue", value: p.building_sqm, unitCode: "MTK" } : undefined,
+        address: { "@type": "PostalAddress", addressLocality: p.area, addressRegion: "Enugu", addressCountry: "NG" },
+      },
+    },
+  ];
   return (
     <section className="container section">
-      <div className="breadcrumb">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
+      <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         <span>/</span>
         <Link href="/properties">Properties</Link>
@@ -76,7 +137,7 @@ export default async function Property({
         <Link href={`/areas/${p.area_slug}`}>{p.area}</Link>
         <span>/</span>
         <span>{p.reference}</span>
-      </div>
+      </nav>
       <Gallery
         images={p.images}
         title={

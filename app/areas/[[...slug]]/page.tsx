@@ -3,19 +3,27 @@ import { notFound } from "next/navigation";
 import { MapPin, ArrowUpRight } from "lucide-react";
 import { getAreas, getProperties } from "@/lib/catalogue";
 import { PropertyCard } from "@/components/property-card";
+import type { Metadata } from "next";
+import { absoluteUrl, areaGuides, jsonLd } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug?: string[] }>;
-}) {
+}): Promise<Metadata> {
   const { slug } = await params;
   const areas = await getAreas();
   const area = areas.find((a) => a.slug === slug?.[0]);
+  const result = area ? await getProperties({ area: area.slug }) : null;
+  const guide = area ? areaGuides[area.slug] : null;
+  const title = area ? `Property in ${area.name}, Enugu` : "Enugu Areas & Neighbourhood Property Guide";
+  const description = guide?.summary || area?.description || "Explore Enugu neighbourhoods, browse current property adverts and learn what to check before buying or renting in a specific area.";
   return {
-    title: area
-      ? `Property in ${area.name}, Enugu`
-      : "Explore Enugu neighbourhoods",
+    title,
+    description,
+    alternates: { canonical: area ? `/areas/${area.slug}` : "/areas" },
+    robots: area && !guide && !result?.count ? { index: false, follow: true } : undefined,
+    openGraph: { title, description, url: area ? `/areas/${area.slug}` : "/areas" },
   };
 }
 export default async function Areas({
@@ -28,8 +36,21 @@ export default async function Areas({
   const area = areas.find((a) => a.slug === slug?.[0]);
   if (slug && (!area || slug.length > 1)) notFound();
   const result = area ? await getProperties({ area: area.slug }) : null;
+  const guide = area ? areaGuides[area.slug] : null;
+  const schema = area
+    ? {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+          { "@type": "ListItem", position: 2, name: "Enugu areas", item: absoluteUrl("/areas") },
+          { "@type": "ListItem", position: 3, name: area.name, item: absoluteUrl(`/areas/${area.slug}`) },
+        ],
+      }
+    : null;
   return (
     <>
+      {schema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />}
       <div className="page-heading">
         <div className="container">
           <span className="eyebrow">GET TO KNOW YOUR NEXT NEIGHBOURHOOD</span>
@@ -48,6 +69,12 @@ export default async function Areas({
         {area ? (
           <>
             <h2>Available in {area.name}</h2>
+            <div className="area-intent-links" aria-label={`${area.name} property searches`}>
+              <Link href={`/properties?purpose=sale&area=${area.slug}`}>Property for sale</Link>
+              <Link href={`/properties?purpose=rent&area=${area.slug}`}>Property for rent</Link>
+              <Link href={`/properties?purpose=short-let&area=${area.slug}`}>Short lets</Link>
+              <Link href={`/properties/land?purpose=sale&area=${area.slug}`}>Land for sale</Link>
+            </div>
             {result?.properties.length ? (
               <div className="property-grid">
                 {result.properties.map((p) => (
@@ -68,12 +95,21 @@ export default async function Areas({
               </div>
             )}
             <div className="prose">
-              <h2>Get a feel for the area</h2>
+              <h2>{guide ? `About property in ${area.name}` : "Get a feel for the area"}</h2>
               <p>
-                Visit at different times of day. Check your journey to work,
-                schools and essential services, and ask about road access,
-                drainage, water and electricity at the specific property.
+                {guide?.context || "Visit at different times of day. Check your journey to work, schools and essential services, and ask about road access, drainage, water and electricity at the specific property."}
               </p>
+              {guide && (
+                <>
+                  <h2>What to check in {area.name}</h2>
+                  <ul>{guide.checklist.map((item) => <li key={item}>{item}</li>)}</ul>
+                  <h2>Explore nearby Enugu areas</h2>
+                  <p>{guide.nearby.map((nearby, index) => {
+                    const nearbyArea = areas.find((candidate) => candidate.slug === nearby);
+                    return nearbyArea ? <span key={nearby}>{index ? " · " : ""}<Link href={`/areas/${nearby}`}>{nearbyArea.name}</Link></span> : null;
+                  })}</p>
+                </>
+              )}
               <Link className="text-link" href="/safety">
                 Prepare for your inspection
               </Link>
