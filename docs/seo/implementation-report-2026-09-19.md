@@ -74,6 +74,9 @@ The release avoids new third-party scripts. Field Core Web Vitals and organic co
 - A missing page returned 404.
 - The preview Worker returned `noindex, nofollow`.
 - The sitemap and checked public pages contained no `workers.dev` canonical URLs.
+- The live homepage was reloaded at a mobile breakpoint and retained one clear H1, labelled search controls, accessible navigation, and no document-level horizontal overflow.
+
+Synthetic Chrome trace tooling is not configured in the current development environment, so this report does not invent Lighthouse or Core Web Vitals figures. Search Console field data remains the required source for real-user LCP, INP and CLS after verification and sufficient traffic.
 
 ## Next 30 days
 
@@ -90,4 +93,3 @@ The release avoids new third-party scripts. Field Core Web Vitals and organic co
 3. Add descriptive image-alt moderation and complete Stream video metadata before introducing VideoObject markup.
 4. Add slug history and permanent redirects before editors can change public slugs.
 5. Expand beyond the first Enugu pages only where inventory, demand and unique local value justify indexation.
-
