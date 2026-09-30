@@ -194,7 +194,7 @@ export default async function Property({
               </div>
             )}
             <div>
-              <strong>{p.land_sqm.toLocaleString()} m²</strong>Land size
+              <strong>{p.land_sqm == null ? "Not specified" : `${p.land_sqm.toLocaleString()} m²`}</strong>Land size
             </div>
           </div>
           <div className="prose">

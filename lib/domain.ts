@@ -60,7 +60,7 @@ export type PublicProperty = {
   property_condition?: string;
   furnishing?: string;
   details?: Record<string, string | number | boolean>;
-  land_sqm: number;
+  land_sqm: number | null;
   features: string[];
   images: string[];
   seller_type: string;

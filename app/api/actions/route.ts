@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       const payload = {
         ...data,
         title: text(data.title, 5, 160, "Property title"),
-        description: text(data.description || "", 0, 15000),
+        description: text(data.description || "", 50, 15000, "Property description"),
         category: z
           .enum(["houses", "land", "commercial", "new-developments"])
           .parse(data.category),
@@ -122,11 +122,7 @@ export async function POST(request: NextRequest) {
           .regex(/^[a-z0-9-]+$/)
           .parse(data.property_type),
         price_minor: toMinor(String(data.price)),
-        land_sqm: z.coerce
-          .number()
-          .positive()
-          .max(100000000)
-          .parse(data.land_sqm),
+        land_sqm: optionalNumber(data.land_sqm, 1, 100000000),
         bedrooms: optionalNumber(data.bedrooms, 0, 100),
         bathrooms: optionalNumber(data.bathrooms, 0, 100),
         toilets: optionalNumber(data.toilets, 0, 100),

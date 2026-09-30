@@ -60,7 +60,7 @@ export async function getProperties(filters: SearchFilters = {}) {
       data = data.filter((p) => (p.bedrooms || 0) >= bedrooms);
     if (bathrooms !== null)
       data = data.filter((p) => (p.bathrooms || 0) >= bathrooms);
-    if (minLand !== null) data = data.filter((p) => p.land_sqm >= minLand);
+    if (minLand !== null) data = data.filter((p) => p.land_sqm !== null && p.land_sqm >= minLand);
     if (filters.check)
       data = data.filter((p) => p.checks.some((c) => c.type === filters.check));
     if (filters.featured) data = data.filter((p) => p.featured);

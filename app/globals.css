@@ -1008,6 +1008,9 @@ textarea {
   flex-direction: column;
   gap: 20px;
 }
+.stack-form[hidden] {
+  display: none;
+}
 .turnstile-shell {
   position: relative;
   min-height: 70px;

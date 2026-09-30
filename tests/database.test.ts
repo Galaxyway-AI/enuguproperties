@@ -26,6 +26,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0017_listing_availability.sql",
     "0018_advertising_promotions.sql",
     "0019_featured_advertising.sql",
+    "0021_simpler_listing.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -155,6 +156,16 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       [JSON.stringify(payload)],
     )
   ).rows[0].id;
+  assert.equal((await sql.query<{ plan_id: string }>("select plan_id from public.properties where id=$1", [property])).rows[0].plan_id, "plus");
+  await sql.query("select public.select_plan($1,'free')", [property]);
+  await t.test("a first advert can omit optional land size and starts on Plus", async () => {
+    await as(buyer);
+    const optional = (await sql.query<{ id: string }>("select public.save_property(null,$1::jsonb) id", [JSON.stringify({ ...payload, title: "First advert without land size", land_sqm: null })])).rows[0].id;
+    const rows = (await sql.query<{ plan_id: string; land_sqm: number | null }>("select plan_id,land_sqm from public.properties where id=$1", [optional])).rows;
+    assert.equal(rows[0].plan_id, "plus");
+    assert.equal(rows[0].land_sqm, null);
+    await as(seller);
+  });
   await t.test(
     "property category and structured details are validated in PostgreSQL",
     async () => {

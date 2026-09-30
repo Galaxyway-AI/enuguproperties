@@ -80,7 +80,7 @@ export function PropertyCard({ property: p }: { property: PublicProperty }) {
           )}
           <span>
             <Maximize size={15} />
-            {p.land_sqm.toLocaleString()} m²
+            {p.land_sqm == null ? "Size not specified" : `${p.land_sqm.toLocaleString()} m²`}
           </span>
         </div>
         <div className="card-trust">

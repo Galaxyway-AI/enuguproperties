@@ -55,18 +55,27 @@ export function UploadForm({
         setBusy(true);
         setError("");
         const form = e.currentTarget;
-        const data = new FormData(form);
-        data.set("property", property);
-        data.set("kind", kind);
-        data.set("staff", String(staff));
         try {
-          const selected = data.get("file");
-          if (selected instanceof File && selected.type.startsWith("image/"))
-            data.set("file", await prepareImage(selected));
-          const r = await fetch("/api/uploads", { method: "POST", body: data });
-          const result = await r.json();
-          if (!r.ok) throw new Error(result.error);
-          setMessage(result.message);
+          const files = Array.from(form.querySelector<HTMLInputElement>('input[name="file"]')?.files || []);
+          if (kind === "image" && files.length > 4)
+            throw new Error("Choose no more than four photographs at a time.");
+          if (kind === "image" && limit !== undefined && files.length > limit - currentCount)
+            throw new Error(`You can add ${limit - currentCount} more photographs on this plan. Choose fewer files or change plans.`);
+          let uploaded = 0;
+          for (const file of files) {
+            const data = new FormData();
+            data.set("property", property);
+            data.set("kind", kind);
+            data.set("staff", String(staff));
+            if (kind === "document") data.set("type", new FormData(form).get("type") || "");
+            data.set("file", file.type.startsWith("image/") ? await prepareImage(file) : file);
+            const response = await fetch("/api/uploads", { method: "POST", body: data });
+            const result = await response.json();
+            if (!response.ok) throw new Error(`${uploaded} of ${files.length} uploaded. ${result.error || "Upload failed."}`);
+            uploaded += 1;
+            setMessage(`Uploaded ${uploaded} of ${files.length} ${kind === "image" ? "photographs" : "documents"}…`);
+          }
+          setMessage(`${uploaded} ${kind === "image" ? "photographs" : "documents"} uploaded successfully.`);
           form.reset();
           router.refresh();
         } catch (e) {
@@ -101,6 +110,7 @@ export function UploadForm({
               : "image/jpeg,image/png,image/webp,application/pdf"
           }
           required
+          multiple={kind === "image"}
           disabled={allowanceReached}
         />
       </label>
@@ -108,7 +118,7 @@ export function UploadForm({
         Maximum 12 MB.{" "}
         {kind === "document"
           ? "Evidence is private and is not published on your listing."
-          : "Images are optimised and location metadata is removed."}
+          : "Choose up to four at a time. Images are optimised and location metadata is removed."}
       </p>
       {kind === "image" && limit !== undefined && (
         <div

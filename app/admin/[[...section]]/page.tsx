@@ -839,7 +839,7 @@ async function PropertyReview({
           <p>{p.description}</p>
           <div className="record-meta">
             <span>{p.category}</span>
-            <span>{p.land_sqm} m²</span>
+            <span>{p.land_sqm == null ? "Land size not specified" : `${p.land_sqm} m²`}</span>
             <span>{p.bedrooms || 0} bedrooms</span>
           </div>
           <p>

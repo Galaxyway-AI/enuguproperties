@@ -1,5 +1,12 @@
-import { getAreas } from "@/lib/catalogue";
+import { getAreas, getPlans } from "@/lib/catalogue";
+import { currentUser, db } from "@/lib/supabase";
 import { ListingWizard } from "@/components/listing-wizard";
 export default async function NewListing() {
-  return <ListingWizard areas={await getAreas()} />;
+  const user = await currentUser();
+  const [areas, plans, existing] = await Promise.all([
+    getAreas(),
+    getPlans(),
+    user ? (await db()).from("properties").select("id", { count: "exact", head: true }).eq("seller_id", user.id) : Promise.resolve({ count: null }),
+  ]);
+  return <ListingWizard areas={areas} plans={plans} firstListing={existing.count === 0} />;
 }
