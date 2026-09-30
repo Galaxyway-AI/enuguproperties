@@ -10,6 +10,7 @@ export function ActionForm({
   bot = false,
   replaceOnSuccess = false,
   successTitle = "Completed",
+  disabled = false,
 }: {
   action: string;
   extra?: Record<string, unknown>;
@@ -18,6 +19,7 @@ export function ActionForm({
   bot?: boolean;
   replaceOnSuccess?: boolean;
   successTitle?: string;
+  disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -80,7 +82,7 @@ export function ActionForm({
           </div>
         )}
       </div>
-      <button className="button" disabled={busy}>
+      <button className="button" disabled={busy || disabled}>
         {busy ? "Saving…" : label}
       </button>
     </form>
