@@ -1393,6 +1393,22 @@ textarea {
   gap: 15px;
   margin-top: 20px;
 }
+.moderation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.button.danger {
+  background: #a12626;
+  border-color: #a12626;
+}
+.button.danger:hover {
+  background: #811d1d;
+}
+.moderation-actions .button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
 .upload-list {
   display: flex;
   flex-direction: column;

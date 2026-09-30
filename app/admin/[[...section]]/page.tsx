@@ -5,6 +5,7 @@ import { db, configured } from "@/lib/supabase";
 import { ActionForm } from "@/components/action-form";
 import { money } from "@/lib/domain";
 import { UploadForm } from "@/components/upload-form";
+import { ModerationActions } from "@/components/moderation-actions";
 export default async function Admin({
   params,
   searchParams,
@@ -808,6 +809,19 @@ async function PropertyReview({
         {money(p.price_minor)}
       </p>
       <div className="record-list">
+        {can("moderate") && (
+          <section className="panel">
+            <h2 style={{ fontSize: 24 }}>Moderation decision</h2>
+            <p>Review the advert details below, then choose an action. No separate review step is needed. Documents and verification checks are optional.</p>
+            {moderationOptions(p.status).length ? (
+              <ModerationActions id={id} options={moderationOptions(p.status)} />
+            ) : (
+              <div className="notice">
+                This listing is waiting for the seller to submit an amended version before another decision can be recorded.
+              </div>
+            )}
+          </section>
+        )}
         <section className="panel">
           <h2 style={{ fontSize: 24 }}>Property and seller</h2>
           <div className="form-grid">
@@ -855,8 +869,9 @@ async function PropertyReview({
             </div>
           ))}
         </section>
-        <section className="panel">
-          <h2 style={{ fontSize: 24 }}>Authorised documents</h2>
+        <details className="panel">
+          <summary>Authorised documents (optional)</summary>
+          <p>Review or add private evidence when it is needed. Documents are not required to publish an advert.</p>
           {can("verify") && (
             <UploadForm
               property={id}
@@ -897,48 +912,7 @@ async function PropertyReview({
           ) : (
             <p>No documents are visible to your role.</p>
           )}
-        </section>
-        {can("moderate") && (
-          <section className="panel">
-            <h2 style={{ fontSize: 24 }}>Moderation decision</h2>
-            {moderationOptions(p.status).length ? (
-              <ActionForm
-                action="moderate"
-                extra={{ id }}
-                label="Record decision and notify seller"
-              >
-                <label>
-                  Decision
-                  <select name="decision">
-                    {moderationOptions(p.status).map(([value, label]) => (
-                      <option value={value} key={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Decision reason or amendments required
-                  <textarea
-                    name="reason"
-                    minLength={5}
-                    required
-                    placeholder="Give the seller clear, specific instructions. This appears in their account and is sent by email."
-                  />
-                </label>
-                <p className="form-caption">
-                  The seller receives this decision and your instructions in
-                  their account and by email.
-                </p>
-              </ActionForm>
-            ) : (
-              <div className="notice">
-                This listing is waiting for the seller to submit an amended
-                version before another decision can be recorded.
-              </div>
-            )}
-          </section>
-        )}
+        </details>
         {can("moderate") && (
           <section className="panel">
             <h2 style={{ fontSize: 24 }}>Review history</h2>
@@ -960,8 +934,9 @@ async function PropertyReview({
           </section>
         )}
         {can("verify") && (
-          <section className="panel">
-            <h2 style={{ fontSize: 24 }}>Evidence-based verification</h2>
+          <details className="panel">
+            <summary>Evidence-based verification (optional)</summary>
+            <p>Record a verification only when evidence supports that specific check. Publishing an advert does not award a verification badge.</p>
             {checks?.map((v) => (
               <p key={v.id}>
                 {v.type_id} · {v.status} · revision {v.property_revision}
@@ -1041,7 +1016,7 @@ async function PropertyReview({
                 <textarea name="internal_notes" required />
               </label>
             </ActionForm>
-          </section>
+          </details>
         )}
         {can("moderate") && (
           <details className="panel">
@@ -1146,12 +1121,11 @@ type AdminFeedRow = {
 };
 
 function moderationOptions(status: string): [string, string][] {
-  if (status === "submitted") return [["under_review", "Start review"]];
-  if (status === "under_review")
+  if (["submitted", "under_review"].includes(status))
     return [
       ["live", "Approve and publish"],
       ["needs_changes", "Request amendments"],
-      ["rejected", "Reject listing"],
+      ["rejected", "Decline listing"],
     ];
   if (["live", "under_offer"].includes(status))
     return [["paused", "Pause public listing"]];

@@ -21,6 +21,7 @@ const sourceFiles = [
   "supabase/migrations/0018_advertising_promotions.sql",
   "supabase/migrations/0019_featured_advertising.sql",
   "supabase/migrations/0021_simpler_listing.sql",
+  "supabase/migrations/0022_simple_moderation.sql",
 ];
 
 const compatibility = `-- Neon compatibility layer for the original PostgreSQL schema.

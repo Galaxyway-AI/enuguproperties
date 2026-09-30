@@ -386,7 +386,9 @@ export async function POST(request: NextRequest) {
     } else if (action === "moderate") {
       const propertyId = uuid(body.id);
       const decision = text(data.decision, 3, 30);
-      const reason = text(data.reason, 5, 2000, "Decision reason");
+      const reason = text(data.reason ?? "", 0, 2000, "Decision note").trim();
+      if (reason && reason.length < 5)
+        throw new HttpError(400, "The optional decision note must contain at least 5 characters.");
       await rpc("moderate_property", {
         p_id: propertyId,
         p_decision: decision,

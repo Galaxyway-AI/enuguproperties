@@ -27,6 +27,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0018_advertising_promotions.sql",
     "0019_featured_advertising.sql",
     "0021_simpler_listing.sql",
+    "0022_simple_moderation.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -485,6 +486,61 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     await sql.query(
       "update public.properties set status='live',expires_at=now()+interval '30 days' where id=$1",
       [property],
+    );
+  });
+  await t.test("a super admin can directly approve their own submitted advert without a note", async () => {
+    await as(seller);
+    const ownProperty = (await sql.query<{ id: string }>(
+      "select public.save_property(null,$1::jsonb) id",
+      [JSON.stringify({ ...payload, title: "Admin's own advert" })],
+    )).rows[0].id;
+    await sql.query("select public.select_plan($1,'free')", [ownProperty]);
+    await as("", "aal1", "service_role");
+    await sql.query(
+      "select public.attach_upload($1,$2,$3,'image',null,'Admin advert photo','image/webp',100,'admin-own-photo')",
+      [ownProperty, seller, `${seller}/${ownProperty}/first.webp`],
+    );
+    await as(seller);
+    await sql.query("select public.submit_property($1,$2)", [ownProperty, agreement]);
+    await sql.query("select public.moderate_property($1,'live','')", [ownProperty]);
+    const review = (await sql.query<{ status: string; reason: string }>(
+      `select p.status,r.reason from public.properties p
+       join public.moderation_reviews r on r.property_id=p.id
+       where p.id=$1 order by r.created_at desc limit 1`,
+      [ownProperty],
+    )).rows[0];
+    assert.equal(review.status, "live");
+    assert.equal(review.reason, "Approved for publication.");
+    const audit = (await sql.query<{ self_review: boolean }>(
+      `select (metadata->>'self_review')::boolean self_review from public.audit_logs
+       where entity_id=$1 and action='moderation_live' order by id desc limit 1`,
+      [ownProperty],
+    )).rows[0];
+    assert.equal(audit.self_review, true);
+  });
+  await t.test("a property moderator still cannot approve their own advert", async () => {
+    const moderator = "10000000-0000-4000-8000-000000000005";
+    await as("", "aal1", "service_role");
+    await sql.exec(`reset role; insert into auth.users(id) values('${moderator}'); set role service_role;
+      update public.profiles set full_name='Test moderator',phone='+2348012345678' where id='${moderator}';
+      insert into public.user_roles(user_id,role_id) values('${moderator}','property_moderator');
+      insert into public.staff_mfa_exemptions(user_id,reason) values('${moderator}','Test moderator');`);
+    await as(moderator);
+    const ownProperty = (await sql.query<{ id: string }>(
+      "select public.save_property(null,$1::jsonb) id",
+      [JSON.stringify({ ...payload, title: "Moderator's own advert" })],
+    )).rows[0].id;
+    await sql.query("select public.select_plan($1,'free')", [ownProperty]);
+    await as("", "aal1", "service_role");
+    await sql.query(
+      "select public.attach_upload($1,$2,$3,'image',null,'Moderator advert photo','image/webp',100,'moderator-own-photo')",
+      [ownProperty, moderator, `${moderator}/${ownProperty}/first.webp`],
+    );
+    await as(moderator);
+    await sql.query("select public.submit_property($1,$2)", [ownProperty, agreement]);
+    await assert.rejects(
+      sql.query("select public.moderate_property($1,'live','')", [ownProperty]),
+      /Only a super admin may review their own listing/,
     );
   });
   await t.test(
