@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [areas, result] = await Promise.all([getAreas(), getProperties()]);
   const areaInventory = await Promise.all(
-    areas.map(async (area) => ({ area, count: (await getProperties({ area: area.slug })).count })),
+    areas.map(async (area) => ({
+      area,
+      count: (await getProperties({ area: area.slug })).count,
+    })),
   );
   const staticPaths = [
     "",
@@ -18,6 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/verification",
     "/safety",
     "/about",
+    "/faq",
     "/pricing",
     "/sell",
     "/how-it-works",
@@ -35,10 +39,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
   return [
     ...staticPaths.map((path) => ({ url: siteUrl + path })),
-    ...result.properties.filter((property) => !property.demo).map((property) => ({
-      url: `${siteUrl}/property/${property.slug}`,
-      lastModified: property.updated_at,
-      images: property.images.map((image) => new URL(image, siteUrl).toString()),
-    })),
+    ...result.properties
+      .filter((property) => !property.demo)
+      .map((property) => ({
+        url: `${siteUrl}/property/${property.slug}`,
+        lastModified: property.updated_at,
+        images: property.images.map((image) =>
+          new URL(image, siteUrl).toString(),
+        ),
+      })),
   ];
 }

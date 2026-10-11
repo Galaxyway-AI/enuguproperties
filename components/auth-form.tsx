@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Turnstile } from "./turnstile";
 import { safeNext } from "@/lib/domain";
+import { authHref } from "@/lib/auth-navigation";
 export function AuthForm({
   mode,
   next,
@@ -22,6 +23,9 @@ export function AuthForm({
       <div className="notice success submission-success" role="status">
         <h2>Account created</h2>
         <p>{message}</p>
+        <Link className="button" href={authHref("login", next)}>
+          Sign in after confirming your email
+        </Link>
       </div>
     );
   return (
@@ -199,13 +203,14 @@ export function AuthForm({
           </p>
           <p className="form-caption">
             New to Enugu Properties?{" "}
-            <Link href="/register">Create an account</Link>
+            <Link href={authHref("register", next)}>Create an account</Link>
           </p>
         </>
       )}
       {mode === "register" && (
         <p className="form-caption">
-          Already have an account? <Link href="/login">Sign in</Link>
+          Already have an account?{" "}
+          <Link href={authHref("login", next)}>Sign in</Link>
         </p>
       )}
     </form>

@@ -11,6 +11,7 @@ const pages = [
   "/verification",
   "/safety",
   "/about",
+  "/faq",
   "/sell",
   "/pricing",
   "/how-it-works",

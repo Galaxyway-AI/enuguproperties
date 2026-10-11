@@ -114,31 +114,31 @@ export const content: Record<
     eyebrow: "A CLEARER WAY FORWARD",
     title: "From the first search to the next step.",
     intro:
-      "A good property journey has a clear record, the right questions and time to make an informed decision.",
+      "Find a home, land or commercial space to buy, rent or enjoy for a short stay. Start with useful information, ask questions and confirm the next step.",
     sections: [
       {
-        title: "For buyers · Search and ask",
-        body: "Explore properties by type, area and budget. Read the listing and verification summaries. Sign in to save a property or send a question to the team.",
+        title: "Finding a property · Search and shortlist",
+        body: "Browse sale, rental and short-let adverts without an account. Choose an area, property type and budget. Read the photographs, property facts and any verification summaries. Create an account to save properties you want to revisit.",
       },
       {
-        title: "For buyers · Inspect and verify",
-        body: "Request an inspection. Understand what has been checked and ask about further due diligence. Bring independent legal and survey professionals into the process where appropriate.",
+        title: "Finding a property · Ask and inspect",
+        body: "Use the enquiry or inspection action on a property page to contact the team about that advert. Confirm appointment availability, service scope and any fees. Publication review is separate from property verification: read the recorded checks and ask what further professional work you need.",
       },
       {
-        title: "For buyers · Offer and complete",
-        body: "Make a private offer with your conditions. If the parties progress, a transaction case records the milestones. Complete only with the appropriate professional advice and payment arrangements.",
+        title: "Finding a property · Agree the next step",
+        body: "For a purchase, get suitable independent advice on title, authority and payment arrangements before proceeding. For a rental or short stay, confirm availability, the full amount, included services and written terms. An online advert or accepted offer is not a completed transaction.",
       },
       {
-        title: "For sellers · Create and submit",
-        body: "Create an account, complete your profile and add your property. Upload photographs, choose an advertising plan and accept the applicable seller agreement. Private ownership or authority evidence is optional at this stage. Submit the completed listing for review.",
+        title: "Advertising a property · Add the essentials",
+        body: "Register, add your name and phone number, then complete Page 1 of the advert form. Page 2 is optional. Save your draft to add photographs and videos within your plan allowance. Ownership and authority documents are optional when you first advertise. An eligible first advert is automatically assigned Plus while the new member offer is active; activate the free offer at checkout before submitting.",
       },
       {
-        title: "For sellers · Review and publication",
-        body: "Staff review the submission and may request changes or further evidence. Advertising payment does not guarantee approval. A listing only becomes public following moderation.",
+        title: "Advertising a property · Submit for review",
+        body: "Check the property facts and photographs, activate your advertising plan and accept the seller agreement. Submit the advert for staff review. The decision and any amendments requested appear in your account and are sent by email. Advertising payment does not guarantee approval or a verification result.",
       },
       {
-        title: "For sellers · Enquiries and completion",
-        body: "Track enquiries, inspections and offers through the platform. A success commission may apply under your accepted marketing agreement. Its rate and basis are recorded separately from the advertising plan.",
+        title: "Advertising a property · Keep your advert current",
+        body: "Manage enquiries and inspection requests from your account. After approval, use the revision option to change details or media and submit those changes for review. You can turn the SOLD or RENTED badge on or off without approval. Any agreed success commission is separate from advertising fees and is recorded in your marketing agreement.",
       },
     ],
     cta: { label: "Find a property", href: "/properties" },
@@ -147,11 +147,11 @@ export const content: Record<
     eyebrow: "ROOTED IN ENUGU. BUILT AROUND TRUST.",
     title: "Property is personal. So is our purpose.",
     intro:
-      "Enugu Properties is operated by MAGENCY ONLINE SOLUTIONS LTD. We exist to improve transparency, trust and accessibility in the Enugu property market.",
+      "Enugu Properties is operated by MAGENCY ONLINE SOLUTIONS LTD. We bring property adverts, clear records and support together for people buying, renting, booking a short stay or advertising in Enugu.",
     sections: [
       {
         title: "A managed marketplace",
-        body: "We are building a place where property information, seller introductions, inspection requests and verification records belong to one clear process. Our initial focus is property for sale in Enugu metropolis.",
+        body: "Find homes, land and commercial property for sale, annual rent and short lets in Enugu. Owners, authorised agents and developers can advertise, while visitors can compare property facts and ask about the next step.",
       },
       {
         title: "Trust comes from evidence",

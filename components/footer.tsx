@@ -2,9 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { business, diasporaWhatsappUrl, whatsappUrl } from "@/lib/business";
+import styles from "./site-navigation.module.css";
 export function Footer() {
   return (
-    <footer className="footer">
+    <footer className={`footer ${styles.footer}`}>
       <div className="container footer-grid">
         <div>
           <Link href="/" className="brand" aria-label="Enugu Properties home">
@@ -21,7 +22,7 @@ export function Footer() {
             <br />
             Confidence should come with it.
           </p>
-          <p className="muted">Local knowledge. A clearer way forward.</p>
+          <p className="muted">Homes, land, rentals and short stays in Enugu. Local support at every step.</p>
           <p className="footer-company">
             Enugu Properties is operated by {business.legalName}
             <br />
@@ -43,11 +44,12 @@ export function Footer() {
           <Link href="/areas">Explore Enugu</Link>
         </div>
         <div>
-          <h3>A more informed purchase</h3>
+          <h3>Help and guidance</h3>
           <Link href="/verification">Understand verification</Link>
           <Link href="/how-it-works">How it works</Link>
-          <Link href="/buying-from-abroad">Buying from abroad</Link>
-          <Link href="/safety">Buyer safety</Link>
+          <Link href="/faq">Frequently asked questions</Link>
+          <Link href="/buying-from-abroad">Diaspora support</Link>
+          <Link href="/safety">Property safety</Link>
           <Link href="/market-insights">Market insights</Link>
         </div>
         <div>
@@ -58,25 +60,27 @@ export function Footer() {
             Contact the team <ArrowUpRight size={14} />
           </Link>
           <Link href="/legal/complaints">Complaints</Link>
+          <span className={styles.footerContactLabel}>Nigeria support</span>
           <a href={`mailto:${business.supportEmail}`}>
             {business.supportEmail}
-          </a>
-          <a href={`mailto:${business.diasporaEmail}`}>
-            {business.diasporaEmail}
           </a>
           <a
             href={whatsappUrl(
               "Hello Enugu Properties, I would like assistance with a property enquiry.",
             )}
           >
-            Nigeria WhatsApp {business.whatsappDisplay}
+            WhatsApp {business.whatsappDisplay}
+          </a>
+          <span className={styles.footerContactLabel}>Diaspora support</span>
+          <a href={`mailto:${business.diasporaEmail}`}>
+            {business.diasporaEmail}
           </a>
           <a
             href={diasporaWhatsappUrl(
-              "Hello Enugu Properties, I am buying from abroad and would like assistance.",
+              "Hello Enugu Properties, I am abroad and would like help finding or advertising a property.",
             )}
           >
-            Diaspora WhatsApp {business.diasporaWhatsappDisplay}
+            WhatsApp {business.diasporaWhatsappDisplay}
           </a>
         </div>
       </div>

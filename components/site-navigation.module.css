@@ -1,0 +1,219 @@
+.header .inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: 100%;
+}
+
+.header .brand {
+  flex-shrink: 0;
+  max-width: none;
+}
+
+.header .brand img {
+  width: 182px;
+  height: auto;
+}
+
+.navigation,
+.mainLinks,
+.actions,
+.desktopAuth {
+  display: flex;
+  align-items: center;
+}
+
+.mainLinks,
+.helpLinks,
+.mobileHelp ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mainLinks {
+  gap: 24px;
+}
+
+.mainLinks > li > a,
+.helpButton,
+.desktopAuth > a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mainLinks a:hover,
+.mainLinks a[aria-current],
+.helpButton:hover,
+.desktopAuth > a:hover {
+  color: var(--green);
+}
+
+.helpButton {
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.desktopHelp {
+  position: relative;
+}
+
+.helpLinks {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 255px;
+  padding: 10px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 14px 35px #102e2217;
+}
+
+.helpLinks a {
+  display: block;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.helpLinks a:hover,
+.helpLinks a:focus-visible {
+  background: var(--warm);
+}
+
+.actions {
+  gap: 16px;
+}
+
+.desktopAuth {
+  gap: 16px;
+}
+
+.desktopAuth > .register {
+  color: var(--green);
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.header .listButton {
+  white-space: nowrap;
+}
+
+.header .menuButton,
+.mobileAuth,
+.mobileHelp {
+  display: none;
+}
+
+.footer .footerContactLabel {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 12px;
+  margin: 18px 0 7px;
+}
+
+.footer .footerContactLabel:first-of-type {
+  margin-top: 16px;
+}
+
+.footer :global(.footer-grid) > div > a:not(:global(.brand)) {
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1200px) and (min-width: 1081px) {
+  .header .inner { gap: 16px; }
+  .mainLinks { gap: 16px; }
+  .actions,
+  .desktopAuth { gap: 12px; }
+  .header .brand img { width: 160px; }
+  .header .listButton { padding-inline: 14px; }
+}
+
+@media (max-width: 1080px) {
+  .header .menuButton { display: inline-flex; flex-shrink: 0; }
+  .desktopAuth,
+  .desktopHelp,
+  .navigation { display: none; }
+
+  .navigationOpen {
+    display: block;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 20px 28px 26px;
+    max-height: calc(100dvh - 100px);
+    overflow-y: auto;
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 14px 35px #102e2217;
+  }
+
+  .mobileAuth {
+    display: flex;
+    gap: 12px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+  }
+
+  .mobileAuth > a { flex: 1; }
+  .mainLinks { display: block; }
+  .mainLinks > li > a,
+  .mobileHelp a {
+    display: flex;
+    min-height: 46px;
+    align-items: center;
+    padding-block: 10px;
+    font-size: 16px;
+  }
+
+  .mobileHelp {
+    display: block;
+    border-top: 1px solid var(--line);
+    margin-top: 12px;
+    padding-top: 20px;
+  }
+
+  .mobileHelp h2 {
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+  }
+
+  .mobileHelp a:hover,
+  .mobileHelp a[aria-current] { color: var(--green); }
+}
+
+@media (max-width: 650px) {
+  .header .inner { gap: 8px; }
+  .header .brand img { width: clamp(115px, 35vw, 158px); }
+  .actions { gap: 8px; }
+  .header .listButton {
+    min-height: 40px;
+    font-size: 11px;
+    padding: 10px;
+  }
+  .listButton svg { display: none; }
+  .navigationOpen {
+    padding-inline: 18px;
+    max-height: calc(100dvh - 84px);
+  }
+}

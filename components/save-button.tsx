@@ -2,14 +2,17 @@
 import { Heart } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authHref } from "@/lib/auth-navigation";
 export function SaveButton({
   id,
   demo = false,
   initialSaved = false,
+  returnTo,
 }: {
   id: string;
   demo?: boolean;
   initialSaved?: boolean;
+  returnTo?: string;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initialSaved);
@@ -34,7 +37,12 @@ export function SaveButton({
       });
       const data = await r.json();
       if (r.status === 401) {
-        router.push("/login");
+        router.push(
+          authHref(
+            "login",
+            returnTo || window.location.pathname + window.location.search,
+          ),
+        );
         return;
       }
       if (!r.ok) throw new Error(data.error);

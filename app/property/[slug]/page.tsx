@@ -88,16 +88,41 @@ export default async function Property({
     ]),
   ].filter(Boolean) as string[][];
   const seoTitle = propertySeoTitle(p);
-  const propertyType = p.property_type === "flat" ? "Apartment" : p.category === "houses" ? "House" : "Place";
+  const propertyType =
+    p.property_type === "flat"
+      ? "Apartment"
+      : p.category === "houses"
+        ? "House"
+        : "Place";
   const schema = [
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
-        { "@type": "ListItem", position: 2, name: "Properties", item: absoluteUrl("/properties") },
-        { "@type": "ListItem", position: 3, name: p.area, item: absoluteUrl(`/areas/${p.area_slug}`) },
-        { "@type": "ListItem", position: 4, name: seoTitle, item: absoluteUrl(`/property/${p.slug}`) },
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Home",
+          item: absoluteUrl("/"),
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Properties",
+          item: absoluteUrl("/properties"),
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: p.area,
+          item: absoluteUrl(`/areas/${p.area_slug}`),
+        },
+        {
+          "@type": "ListItem",
+          position: 4,
+          name: seoTitle,
+          item: absoluteUrl(`/property/${p.slug}`),
+        },
       ],
     },
     {
@@ -108,12 +133,17 @@ export default async function Property({
       url: absoluteUrl(`/property/${p.slug}`),
       datePosted: p.created_at,
       dateModified: p.updated_at,
-      image: p.images.map((image) => new URL(image, absoluteUrl("/")).toString()),
+      image: p.images.map((image) =>
+        new URL(image, absoluteUrl("/")).toString(),
+      ),
       offers: {
         "@type": "Offer",
         price: Number(p.price_minor) / 100,
         priceCurrency: "NGN",
-        availability: p.availability_status && p.availability_status !== "available" ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
+        availability:
+          p.availability_status && p.availability_status !== "available"
+            ? "https://schema.org/SoldOut"
+            : "https://schema.org/InStock",
         url: absoluteUrl(`/property/${p.slug}`),
       },
       itemOffered: {
@@ -121,14 +151,28 @@ export default async function Property({
         name: seoTitle,
         numberOfBedrooms: p.bedrooms ?? undefined,
         numberOfBathroomsTotal: p.bathrooms ?? undefined,
-        floorSize: p.building_sqm ? { "@type": "QuantitativeValue", value: p.building_sqm, unitCode: "MTK" } : undefined,
-        address: { "@type": "PostalAddress", addressLocality: p.area, addressRegion: "Enugu", addressCountry: "NG" },
+        floorSize: p.building_sqm
+          ? {
+              "@type": "QuantitativeValue",
+              value: p.building_sqm,
+              unitCode: "MTK",
+            }
+          : undefined,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: p.area,
+          addressRegion: "Enugu",
+          addressCountry: "NG",
+        },
       },
     },
   ];
   return (
     <section className="container section">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
+      />
       <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         <span>/</span>
@@ -194,7 +238,12 @@ export default async function Property({
               </div>
             )}
             <div>
-              <strong>{p.land_sqm == null ? "Not specified" : `${p.land_sqm.toLocaleString()} m²`}</strong>Land size
+              <strong>
+                {p.land_sqm == null
+                  ? "Not specified"
+                  : `${p.land_sqm.toLocaleString()} m²`}
+              </strong>
+              Land size
             </div>
           </div>
           <div className="prose">
@@ -236,7 +285,9 @@ export default async function Property({
                 <span key={f}>{f}</span>
               ))}
             </div>
-            <h2>What has been checked?</h2>
+            <h2 id="property-checks" style={{ scrollMarginTop: 110 }}>
+              What has been checked?
+            </h2>
             <p>
               A completed check describes a specific review. It does not
               guarantee ownership, legal title or the outcome of a purchase.
@@ -306,6 +357,17 @@ export default async function Property({
             <small>{listingPurposeSuffix(p.listing_purpose)}</small>
           </div>
           {p.negotiable && <p className="form-caption">Price is negotiable</p>}
+          <div className="property-check-summary">
+            <ShieldCheck size={19} />
+            <div>
+              <strong>
+                {p.checks.length
+                  ? `${p.checks.length} recorded ${p.checks.length === 1 ? "check" : "checks"}`
+                  : "No additional checks recorded"}
+              </strong>
+              <a href="#property-checks">See what has been checked</a>
+            </div>
+          </div>
           <p>Listed by a property {p.seller_type}</p>
           <hr
             style={{

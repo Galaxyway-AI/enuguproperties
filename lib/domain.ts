@@ -140,7 +140,8 @@ export function canTransition(from: string, to: string) {
 export function safeNext(value: string | null) {
   return value?.startsWith("/") &&
     !value.startsWith("//") &&
-    !value.includes("\\")
+    !value.includes("\\") &&
+    !/[\u0000-\u0020\u007f]/.test(value)
     ? value
     : "/account/dashboard";
 }

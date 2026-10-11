@@ -5,7 +5,6 @@ import {
   listingPurposeDescription,
   listingPurposeSuffix,
   money,
-  verificationLabels,
   type PublicProperty,
 } from "@/lib/domain";
 import { SaveButton } from "./save-button";
@@ -40,7 +39,12 @@ export function PropertyCard({ property: p }: { property: PublicProperty }) {
           )}
           {p.demo && <span className="badge sample">Sample listing</span>}
         </div>
-        <SaveButton id={p.id} demo={p.demo} initialSaved={p.saved} />
+        <SaveButton
+          id={p.id}
+          demo={p.demo}
+          initialSaved={p.saved}
+          returnTo={`/property/${p.slug}`}
+        />
         <span className="image-category">
           {p.category === "houses"
             ? `House ${listingPurposeDescription(p.listing_purpose)}`
@@ -80,17 +84,22 @@ export function PropertyCard({ property: p }: { property: PublicProperty }) {
           )}
           <span>
             <Maximize size={15} />
-            {p.land_sqm == null ? "Size not specified" : `${p.land_sqm.toLocaleString()} m²`}
+            {p.land_sqm == null
+              ? "Size not specified"
+              : `${p.land_sqm.toLocaleString()} m²`}
           </span>
         </div>
         <div className="card-trust">
           <span>
             {p.checks.length
-              ? verificationLabels[p.checks[0].type]
-              : "View listing information"}
+              ? `${p.checks.length} recorded ${p.checks.length === 1 ? "check" : "checks"}`
+              : "No additional checks recorded"}
           </span>
-          <Link href={`/property/${p.slug}`} aria-label={`View ${p.title}`}>
-            <ArrowUpRight size={18} />
+          <Link
+            href={`/property/${p.slug}#property-checks`}
+            aria-label={`See recorded checks for ${p.title}`}
+          >
+            See checks <ArrowUpRight size={16} />
           </Link>
         </div>
       </div>

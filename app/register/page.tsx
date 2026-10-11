@@ -5,7 +5,12 @@ export const metadata = {
   title: "Create an account",
   robots: { index: false, follow: false },
 };
-export default function Register() {
+export default async function Register({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
   if (!features.registration)
     return (
       <section className="auth-wrap">
@@ -31,7 +36,7 @@ export default function Register() {
         Create an account to save properties, ask questions or start your
         listing.
       </p>
-      <AuthForm mode="register" />
+      <AuthForm mode="register" next={next} />
     </section>
   );
 }

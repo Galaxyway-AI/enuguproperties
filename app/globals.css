@@ -609,6 +609,7 @@ em {
   margin-top: 18px;
   font-size: 11px;
   color: var(--green);
+  gap: 10px;
 }
 .card-trust > a {
   display: flex;
@@ -616,6 +617,35 @@ em {
   min-width: 32px;
   min-height: 32px;
   justify-content: flex-end;
+  gap: 5px;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.property-check-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f2f5ee;
+  color: var(--green);
+  font-size: 13px;
+}
+.property-check-summary > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.property-check-summary strong,
+.property-check-summary a {
+  display: block;
+}
+.property-check-summary a {
+  margin-top: 3px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .section-footnote {
   font-size: 11px;

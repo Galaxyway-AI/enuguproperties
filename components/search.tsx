@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import {
   Search,
   MapPin,
@@ -7,18 +9,41 @@ import {
   CalendarDays,
 } from "lucide-react";
 import type { SearchFilters } from "@/lib/catalogue";
+import { searchBudget, searchPurpose } from "@/lib/search-budget";
+type SearchFormProps = {
+  areas: { name: string; slug: string }[];
+  filters?: SearchFilters;
+  advanced?: boolean;
+  hero?: boolean;
+};
 export function SearchForm({
   areas,
   filters = {},
   advanced = false,
   hero = false,
-}: {
-  areas: { name: string; slug: string }[];
-  filters?: SearchFilters;
-  advanced?: boolean;
-  hero?: boolean;
-}) {
-  const purpose = filters.purpose || "sale";
+}: SearchFormProps) {
+  return (
+    <SearchFields
+      key={JSON.stringify(filters)}
+      areas={areas}
+      filters={filters}
+      advanced={advanced}
+      hero={hero}
+    />
+  );
+}
+function SearchFields({
+  areas,
+  filters = {},
+  advanced = false,
+  hero = false,
+}: SearchFormProps) {
+  const [purpose, setPurpose] = useState(searchPurpose(filters.purpose));
+  const [maximum, setMaximum] = useState(filters.max || "");
+  const [minimum, setMinimum] = useState(filters.min || "");
+  const budget = searchBudget(purpose);
+  const priceLabel = (price: number) =>
+    `₦${price.toLocaleString("en-NG")}${budget.suffix}`;
   return (
     <form
       action="/properties"
@@ -38,7 +63,12 @@ export function SearchForm({
                 type="radio"
                 name="purpose"
                 value={value as string}
-                defaultChecked={purpose === value}
+                checked={purpose === value}
+                onChange={() => {
+                  setPurpose(searchPurpose(value as string));
+                  setMaximum("");
+                  setMinimum("");
+                }}
               />
               <span>
                 <PurposeIcon size={16} /> {label as string}
@@ -72,12 +102,19 @@ export function SearchForm({
           </select>
         </label>
         <label>
-          <span>Maximum budget</span>
-          <select name="max" defaultValue={filters.max || ""}>
-            <option value="">Any price</option>
-            {[20000000, 50000000, 100000000, 200000000, 500000000].map((p) => (
+          <span>{budget.label}</span>
+          <select
+            name="max"
+            value={maximum}
+            onChange={(event) => setMaximum(event.target.value)}
+          >
+            <option value="">{budget.any}</option>
+            {maximum && !budget.options.includes(Number(maximum)) && (
+              <option value={maximum}>{priceLabel(Number(maximum))}</option>
+            )}
+            {budget.options.map((p) => (
               <option value={p} key={p}>
-                ₦{p / 1000000} million
+                {priceLabel(p)}
               </option>
             ))}
           </select>
@@ -112,12 +149,17 @@ export function SearchForm({
               />
             </label>
             <label>
-              Minimum price (₦)
+              {purpose === "rent"
+                ? "Minimum annual rent (₦)"
+                : purpose === "short-let"
+                  ? "Minimum nightly rate (₦)"
+                  : "Minimum purchase price (₦)"}
               <input
                 type="number"
                 min="0"
                 name="min"
-                defaultValue={filters.min}
+                value={minimum}
+                onChange={(event) => setMinimum(event.target.value)}
                 placeholder="No minimum"
               />
             </label>

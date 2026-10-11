@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { currentUser, configured, db } from "@/lib/supabase";
+import { authHref } from "@/lib/auth-navigation";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Your account",
@@ -29,7 +31,8 @@ export default async function AccountLayout({
       </section>
     );
   const user = await currentUser();
-  if (!user) redirect("/login");
+  if (!user)
+    redirect(authHref("login", (await headers()).get("x-enugu-return-to")));
   const { data: permissions } = await (await db()).rpc("my_permissions");
   return (
     <div className="container dashboard">
@@ -52,7 +55,9 @@ export default async function AccountLayout({
             {s[0].toUpperCase() + s.slice(1)}
           </Link>
         ))}
-        {permissions?.length ? <Link href="/admin">Staff workspace</Link> : null}
+        {permissions?.length ? (
+          <Link href="/admin">Staff workspace</Link>
+        ) : null}
       </nav>
       <div className="dashboard-content">{children}</div>
     </div>

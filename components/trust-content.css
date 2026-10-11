@@ -1,0 +1,82 @@
+.visitor-faq { border-top: 1px solid var(--line); }
+.visitor-faq-item { border-bottom: 1px solid var(--line); scroll-margin-top: 28px; }
+.visitor-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 23px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.visitor-faq-item summary::-webkit-details-marker { display: none; }
+.visitor-faq-item summary svg { color: var(--green); transition: transform 150ms ease; }
+.visitor-faq-item[open] summary svg { transform: rotate(180deg); }
+.visitor-faq-answer { padding: 0 44px 24px 0; max-width: 900px; }
+.visitor-faq-answer p { margin-bottom: 16px; }
+.visitor-faq-page { max-width: 1050px; }
+.visitor-faq-topics { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 34px; }
+.visitor-faq-topics a { padding: 8px 14px; border: 1px solid var(--line); border-radius: 24px; font-size: 14px; color: var(--green); }
+.visitor-faq-topics a:hover { background: var(--warm); border-color: var(--green); }
+.visitor-support-banner { display: flex; gap: 24px; align-items: flex-start; padding: 30px; margin-top: 40px; border-radius: var(--radius); background: var(--warm); }
+.visitor-support-banner > svg { color: var(--green); }
+.visitor-support-banner > div { flex: 1; }
+.visitor-support-banner h2 { font-size: 25px; letter-spacing: -.7px; }
+.visitor-support-banner p { font-size: 15px; }
+.visitor-support-banner > .button { align-self: center; }
+.visitor-inline-links { display: flex; flex-wrap: wrap; gap: 10px 24px; }
+.visitor-inline-links a { color: var(--green); text-decoration: underline; text-underline-offset: 4px; font-weight: 550; font-size: 14px; overflow-wrap: anywhere; }
+.visitor-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin-top: 28px; }
+.visitor-about-intro { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); align-items: start; gap: 64px; }
+.visitor-story p { line-height: 1.8; }
+.visitor-stored-story { white-space: pre-line; }
+.visitor-business-card { padding: 30px; border: 1px solid var(--line); border-top: 4px solid var(--gold); border-radius: var(--radius); background: var(--warm); }
+.visitor-business-card > svg { color: var(--green); margin-bottom: 18px; }
+.visitor-business-card h2 { font-size: 24px; letter-spacing: -.7px; }
+.visitor-business-card strong { font-size: 16px; display: block; }
+.visitor-business-card dl { margin: 22px 0; }
+.visitor-business-card dl > div + div { margin-top: 16px; }
+.visitor-business-card dt { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.visitor-business-card dd { margin: 0; font-size: 14px; }
+.visitor-business-card .visitor-small-copy { font-size: 12px; margin-bottom: 0; }
+.visitor-values { margin-top: 64px; }
+.visitor-value-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 28px; }
+.visitor-value-grid article { border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
+.visitor-value-grid svg, .visitor-contact-card > svg { color: var(--green); margin-bottom: 20px; }
+.visitor-value-grid p { font-size: 15px; margin-bottom: 0; }
+.visitor-verification-note { display: flex; gap: 28px; background: #edf4ef; padding: 36px; border-radius: var(--radius); margin-top: 64px; }
+.visitor-verification-note > svg { color: var(--green); }
+.visitor-verification-note h2 { font-size: 31px; }
+.visitor-verification-note p { max-width: 900px; }
+.visitor-support { margin-top: 64px; }
+.visitor-support-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 28px; }
+.visitor-contact-card { padding: 30px; border: 1px solid var(--line); border-radius: var(--radius); }
+.visitor-contact-card > a { display: block; color: var(--green); overflow-wrap: anywhere; font-weight: 550; margin-top: 10px; }
+.visitor-contact-card > .button { display: inline-flex; margin-top: 22px; }
+@media (max-width: 800px) {
+  .visitor-about-intro { grid-template-columns: 1fr; gap: 32px; }
+  .visitor-value-grid { grid-template-columns: 1fr; gap: 16px; }
+  .visitor-values, .visitor-verification-note, .visitor-support { margin-top: 44px; }
+  .visitor-support-banner { flex-wrap: wrap; }
+  .visitor-support-banner > div { flex-basis: calc(100% - 60px); }
+  .visitor-support-banner > .button { margin-left: 52px; }
+}
+@media (max-width: 600px) {
+  .visitor-support-grid { grid-template-columns: 1fr; gap: 16px; }
+  .visitor-business-card, .visitor-contact-card { padding: 24px; }
+  .visitor-verification-note { padding: 24px; flex-direction: column; gap: 18px; }
+  .visitor-verification-note h2 { font-size: 27px; }
+  .visitor-faq-item summary { font-size: 16px; gap: 16px; padding: 20px 0; }
+  .visitor-faq-answer { padding-right: 0; }
+  .visitor-faq-topics { gap: 8px; }
+  .visitor-faq-topics a { padding: 7px 11px; font-size: 12px; }
+  .visitor-support-banner { padding: 24px; flex-direction: column; gap: 16px; }
+  .visitor-support-banner > .button { margin-left: 0; align-self: flex-start; }
+  .visitor-heading-actions > .button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .visitor-faq-item summary svg { transition: none; }
+}
