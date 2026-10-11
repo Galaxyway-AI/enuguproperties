@@ -62,7 +62,10 @@ export function HeroCarousel({
       aria-label="Find property in Enugu"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onFocusCapture={() => setPaused(true)}
+      onFocusCapture={(event) => {
+        // The play/pause control manages its own state when it receives focus.
+        if (!event.target.closest(".homepage-slider-play")) setPaused(true);
+      }}
       onTouchStart={(event) => {
         const touch = event.touches[0];
         touchStart.current = touch
