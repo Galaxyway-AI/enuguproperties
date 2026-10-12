@@ -556,6 +556,26 @@ export async function POST(request: NextRequest) {
         message:
           "Promotion saved and is ready to use under its configured rules.",
       });
+    } else if (action === "homepage-slide-count") {
+      const count = Number(data.count);
+      if (!Number.isInteger(count) || count < 1 || count > 12)
+        throw new HttpError(400, "Choose a whole number of slideshow photographs from 1 to 12.");
+      const { data: permissions, error: permissionError } = await client.rpc("my_permissions");
+      if (permissionError || !permissions?.includes("settings"))
+        throw new HttpError(403, "Platform settings permission is required.");
+      await serverQuery(
+        `with saved as (
+          insert into public.system_settings(key,value)
+          values('homepage_slides',jsonb_build_object('count',$2::int))
+          on conflict(key) do update set value=excluded.value
+          returning key
+        )
+        insert into public.audit_logs(actor_id,action,entity,metadata)
+        select $1::uuid,'settings_updated','homepage_slides',jsonb_build_object('count',$2::int)
+        from saved`,
+        [user.id, count],
+      );
+      return Response.json({ ok: true, message: `Homepage slideshow set to up to ${count} photographs.` });
     } else if (action === "config")
       await rpc("admin_config", {
         p_kind: text(body.kind, 1, 30),

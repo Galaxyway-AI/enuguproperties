@@ -27,6 +27,7 @@ import { HeroCarousel } from "@/components/hero-carousel";
 import { Faq } from "@/components/faq";
 import { homepageFaqItems } from "@/lib/faq";
 import { heroSlides } from "@/lib/hero-slides";
+import { getHomepageSlideCount } from "@/lib/hero-slide-settings";
 import { business, diasporaWhatsappUrl, whatsappUrl } from "@/lib/business";
 import type { Metadata } from "next";
 import { jsonLd, siteUrl } from "@/lib/seo";
@@ -47,10 +48,11 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [areas, properties] = await Promise.all([
+  const [areas, slideCount] = await Promise.all([
     getAreas(),
-    getHomepageProperties(6),
+    getHomepageSlideCount(),
   ]);
+  const properties = await getHomepageProperties(Math.max(6, slideCount * 2));
   return (
     <>
       <script
@@ -68,7 +70,7 @@ export default async function Home() {
           }),
         }}
       />
-      <HeroCarousel slides={heroSlides(properties)}>
+      <HeroCarousel slides={heroSlides(properties, slideCount)}>
         <span className="marketplace-kicker">
           <MapPin size={15} /> YOUR NEXT MOVE STARTS HERE
         </span>
@@ -147,7 +149,7 @@ export default async function Home() {
         </div>
         {properties.length ? (
           <div className="property-grid">
-            {properties.map((property) => (
+            {properties.slice(0, 6).map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
           </div>

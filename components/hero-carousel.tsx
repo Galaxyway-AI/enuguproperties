@@ -111,8 +111,9 @@ export function HeroCarousel({
             className={`homepage-hero-image${slideIndex === activeIndex ? " current" : ""}`}
           >
             {(slideIndex === 0 ||
-              firstPhotoLoaded ||
               slideIndex === activeIndex ||
+              (firstPhotoLoaded && slideIndex === (activeIndex + 1) % count) ||
+              (firstPhotoLoaded && slideIndex === (activeIndex - 1 + count) % count) ||
               visited.includes(slideIndex)) && (
               <Image
                 src={slide.image}

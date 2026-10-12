@@ -6,6 +6,7 @@ import { ActionForm } from "@/components/action-form";
 import { money } from "@/lib/domain";
 import { UploadForm } from "@/components/upload-form";
 import { ModerationActions } from "@/components/moderation-actions";
+import { DEFAULT_HOMEPAGE_SLIDE_COUNT, MAX_HOMEPAGE_SLIDE_COUNT, homepageSlideCount } from "@/lib/hero-slides";
 export default async function Admin({
   params,
   searchParams,
@@ -186,14 +187,27 @@ export default async function Admin({
   }
   if (tab === "settings") {
     if (!can("settings")) return <Denied />;
-    const [{ data: plans }, { data: locations }] = await Promise.all([
+    const [{ data: plans }, { data: locations }, { data: slideSetting }] = await Promise.all([
       c.from("listing_plans").select("*").order("price_minor"),
       c.from("locations").select("id,name,kind").order("name"),
+      c.from("system_settings").select("value").eq("key", "homepage_slides").maybeSingle(),
     ]);
+    const slideCount = homepageSlideCount(slideSetting?.value?.count ?? DEFAULT_HOMEPAGE_SLIDE_COUNT);
     return (
       <>
         <h1>Platform configuration</h1>
         <div className="record-list">
+          <section className="panel">
+            <h2 style={{ fontSize: 24 }}>Homepage slideshow</h2>
+            <p>Choose how many property photographs can appear in the top banner. Each slide uses the first photograph from a different available advert. The six featured property cards below remain separate.</p>
+            <ActionForm action="homepage-slide-count" label="Save slideshow count">
+              <label>
+                Maximum photographs in slideshow
+                <input name="count" type="number" min="1" max={MAX_HOMEPAGE_SLIDE_COUNT} step="1" defaultValue={slideCount} required />
+              </label>
+              <p className="form-caption">Choose 1–{MAX_HOMEPAGE_SLIDE_COUNT}. The slideshow may show fewer when there are not enough eligible adverts with photographs. Current default: {DEFAULT_HOMEPAGE_SLIDE_COUNT}.</p>
+            </ActionForm>
+          </section>
           {plans?.map((p) => (
             <section className="panel" key={p.id}>
               <h2 style={{ fontSize: 24 }}>{p.name} advertising</h2>
