@@ -29,12 +29,24 @@ export async function generateMetadata({
   const purpose = ["sale", "rent", "short-let"].includes(query.purpose || "")
     ? (query.purpose as ListingPurpose)
     : "sale";
+  const title =
+    category?.[0] && categories.includes(category[0] as Category)
+      ? `${categoryLabels[category[0] as Category]} to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`
+      : `Property to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`;
+  const description =
+    purpose === "rent"
+      ? "Find a rental that fits your life in Enugu. Explore houses, flats and commercial spaces, compare photos and prices, and request a local inspection."
+      : purpose === "short-let"
+        ? "Plan your stay in Enugu. Explore short-let homes and apartments, compare photos, nightly prices and amenities, and ask about availability."
+        : "Discover the right property in Enugu. Explore homes, land and commercial spaces for sale, compare photos and prices, and request a local inspection.";
   return {
-    title:
-      category?.[0] && categories.includes(category[0] as Category)
-        ? `${categoryLabels[category[0] as Category]} to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`
-        : `Property to ${purpose === "sale" ? "buy" : purpose === "rent" ? "rent" : "short let"} in Enugu`,
-    description: "Browse current property adverts in Enugu and filter by purpose, area, type, price and property details.",
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: path,
+    },
     alternates: { canonical: `${path}${page > 1 && nonPaginationKeys.length === 0 ? `?page=${page}` : ""}` },
     robots: nonPaginationKeys.length
       ? { index: false, follow: true }
@@ -96,8 +108,9 @@ export default async function Properties({ params, searchParams }: Props) {
           <span className="eyebrow">A PLACE FOR YOUR PLANS</span>
           <h1>{title}</h1>
           <p>
-            Search property for sale, rent and short lets. Read each listing’s
-            verification details before taking your next step.
+            Discover homes, land and commercial spaces across Enugu. Compare
+            photos, prices and listing details, then request an inspection when
+            one catches your eye.
           </p>
         </div>
       </div>

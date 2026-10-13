@@ -17,9 +17,15 @@ export const metadata: Metadata = {
     template: "%s | Enugu Properties",
   },
   description:
-    "Explore houses, land and commercial property in Enugu. Understand listing reviews, property inspections and professional due diligence.",
+    "Find your next place in Enugu. Explore houses, flats, land and commercial property to buy or rent, plus short lets. Compare listings and request an inspection.",
   applicationName: "Enugu Properties",
-  icons: { icon: "/icon.png", apple: "/apple-icon.jpg" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+      { url: "/icon.png", sizes: "556x556", type: "image/png" },
+    ],
+    apple: "/apple-icon.jpg",
+  },
   openGraph: {
     siteName: "Enugu Properties",
     locale: "en_NG",

@@ -37,13 +37,13 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Property for Sale & Rent in Enugu, Nigeria",
   description:
-    "Search houses, land, flats, commercial property, rentals and short lets in Enugu. Browse reviewed adverts and request inspections.",
+    "Find your next place in Enugu. Explore houses, flats, land and commercial property to buy or rent, plus short lets. Compare listings and request an inspection.",
   alternates: { canonical: "/" },
   openGraph: {
     url: "/",
     title: "Property for Sale & Rent in Enugu, Nigeria",
     description:
-      "Find your next property in Enugu, with clear listing information and local support.",
+      "Explore homes, land and commercial property in Enugu. Compare listings and find a place that fits your plans.",
   },
 };
 
