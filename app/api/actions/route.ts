@@ -621,6 +621,39 @@ export async function POST(request: NextRequest) {
         p_name: text(data.name, 3, 160),
         p_kind: text(data.kind, 3, 30),
       });
+    else if (action === "propose-commission") {
+      const rate = String(data.rate || "").trim();
+      if (!/^(?:[2-9]|10)(?:\.\d{1,2})?$/.test(rate) || Number(rate) > 10)
+        throw new HttpError(400, "Enter an agreed proposed rate from 2% to 10%, with at most two decimal places.");
+      result = await rpc("propose_commission_agreement", {
+        p_property: uuid(data.property_id),
+        p_basis_points: Math.round(Number(rate) * 100),
+        p_service_scope: text(data.service_scope, 20, 2000, "Service scope"),
+        p_qualifying_conditions: text(data.qualifying_conditions, 20, 2000, "Qualifying sale conditions"),
+        p_payment_terms: text(data.payment_terms, 8, 500, "Payment terms"),
+      });
+      return Response.json({ ok: true, id: result, message: "The proposed rate and terms are ready for the seller to review. No commission is agreed until the seller accepts them." });
+    }
+    else if (action === "accept-commission") {
+      if (data.accepted !== "on")
+        throw new HttpError(400, "Please review and accept the exact commission terms before continuing.");
+      await rpc("accept_commission_agreement", { p_agreement: uuid(body.id) });
+      return Response.json({ ok: true, message: "Your agreed commission rate and terms have been recorded." });
+    }
+    else if (action === "confirm-legacy-commission") {
+      await rpc("confirm_legacy_commission", {
+        p_mandate: uuid(body.id),
+        p_reference: text(data.reference, 8, 200, "Signed agreement reference"),
+      });
+      return Response.json({ ok: true, message: "The historical signed agreement reference has been recorded. Its original rate is unchanged." });
+    }
+    else if (action === "confirm-qualifying-sale") {
+      await rpc("confirm_qualifying_sale", {
+        p_transaction: uuid(body.id),
+        p_evidence: text(data.evidence, 12, 1000, "Qualifying sale evidence"),
+      });
+      return Response.json({ ok: true, message: "The sale has been marked as qualifying under the seller's accepted terms. Complete the transaction using its final sale price to calculate the agreed fee." });
+    }
     else if (action === "commission")
       await rpc("update_commission", {
         p_id: uuid(body.id),

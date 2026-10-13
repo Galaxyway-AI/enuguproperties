@@ -1,6 +1,6 @@
 # SELLER TERMS & PROPERTY MARKETING MANDATE
 
-**Effective date: 14 September 2026**
+**Effective date: 13 October 2026**
 
 These Seller Terms & Property Marketing Mandate (“**Seller Agreement**”) govern Properties submitted, advertised or marketed through Enugu Properties.
 
@@ -26,7 +26,9 @@ This Seller Agreement should be read with:
 * Enugu Properties Terms of Use;
 * Privacy Policy;
 * applicable Listing Plan;
-* the Property-specific Mandate Schedule accepted by the Seller.
+* any separate Property-specific Mandate Schedule expressly accepted by the Seller.
+
+Accepting these listing terms or submitting an advert does not itself agree a sales commission. Commission-bearing services require a separate proposal with an exact rate and terms, accepted by the Seller before those services begin.
 
 ---
 
@@ -295,6 +297,8 @@ Withdrawal:
 
 # PART B — PROPERTY MARKETING MANDATE
 
+This Part applies only if the Seller separately accepts a Property-specific commission proposal or Mandate Schedule stating the exact fee, services, qualifying transaction and payment terms. The ordinary advert-submission checkbox does not accept a commission rate.
+
 ## 22. APPOINTMENT
 
 By accepting a Property-specific Mandate Schedule, the Seller appoints:
@@ -363,24 +367,13 @@ Unless separately authorised by a valid instrument, Enugu Properties cannot:
 
 # 27. SUCCESS FEE
 
-Where the Property Schedule contains a Success Fee, the Seller agrees to pay that fee when the qualifying conditions are met.
+Where the Seller separately accepts a Property-specific commission proposal or Mandate Schedule, a Success Fee may be payable only when its qualifying conditions are met.
 
-The initial standard commercial rate proposed by Enugu Properties is:
+For new percentage-based sales services, Enugu Properties negotiates an exact rate within **2%–10% of the final agreed Gross Sale Price**. The rate depends on the Property's value, marketing requirements, services and our level of involvement. It must be expressly agreed in writing before the relevant commission-bearing services begin. The 10% upper limit is not a default charge.
 
-## 2% OF THE GROSS SALE PRICE
+The separate proposal must state the agreed percentage, the services to be provided, which completed sale qualifies, who pays and when payment is due. The fee is calculated from the final agreed sale price under those terms. Neither accepting these general listing terms nor posting an advert creates that fee. No higher commission can be imposed unilaterally after acceptance; any variation needs a further written agreement between the parties.
 
-However:
-
-### Only the fee actually displayed in and accepted through the Property-specific Schedule is binding.
-
-A different transaction may therefore contain:
-
-* another percentage;
-* fixed amount;
-* developer rate;
-* negotiated arrangement.
-
-There is no hidden commission.
+Previously accepted Property-specific arrangements retain their original terms. Advertising plan prices and any other separately agreed service charges are distinct from the Success Fee.
 
 ---
 
@@ -763,6 +756,8 @@ Future changes must not silently rewrite an earlier accepted Property-specific c
 
 # PART C — PROPERTY-SPECIFIC MANDATE SCHEDULE
 
+This Schedule is a separate commission agreement only when completed with an exact fee and terms and expressly accepted by the Seller. It is not completed or accepted merely by publishing an advert.
+
 ## ENUGU PROPERTIES
 
 **Brand:** Enugu Properties
@@ -849,7 +844,7 @@ or:
 
 **Agreed Percentage:**
 
-## [2.00]%
+## [Exact percentage agreed separately]%
 
 of Gross Sale Price
 
@@ -944,7 +939,7 @@ By accepting this Mandate, I confirm that:
 
 6. Publication does not guarantee legal title.
 
-7. I have seen the exact applicable Success Fee before accepting.
+7. I understand that submitting an advert does not accept a Success Fee; I will review and separately accept an exact rate and terms if I choose commission-bearing services.
 
 8. I understand the definition of Introduced Buyer.
 

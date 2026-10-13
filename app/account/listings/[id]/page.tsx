@@ -37,6 +37,7 @@ export default async function Listing({
     promotionQuoteResult,
     paidOrders,
     featuredStatusResult,
+    commissionAgreementResult,
   ] = await Promise.all([
     getPlans(),
     client
@@ -81,7 +82,15 @@ export default async function Listing({
       .order("created_at", { ascending: false })
       .limit(1),
     client.rpc("featured_status", { p_property: id }),
+    client.from("commission_agreements")
+      .select("id,basis_points,service_scope,qualifying_conditions,payment_terms,status,accepted_at")
+      .eq("property_id", id)
+      .in("status", ["proposed", "accepted"])
+      .order("proposed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+  const commissionAgreement = commissionAgreementResult.data;
   const promotionQuote = promotionQuoteResult.data as {
     code?: string;
     name?: string;
@@ -162,6 +171,23 @@ export default async function Listing({
           </p>
         </div>
       )}
+      {p.listing_purpose === "sale" && <section className="panel">
+        <h2>Sales commission</h2>
+        {!commissionAgreement && <p>Posting this advert does not agree a sales commission. If you separately ask Enugu Properties for buyer introduction or sales support, we will propose an exact rate within 2%–10% and written service terms for you to review first.</p>}
+        {commissionAgreement && <>
+          <p><strong>{commissionAgreement.status === "accepted" ? "Agreed rate" : "Proposed rate"}: {(commissionAgreement.basis_points / 100).toFixed(2)}%</strong> of the final agreed property sale price.</p>
+          <p><strong>Services:</strong> {commissionAgreement.service_scope}</p>
+          <p><strong>Qualifying sale:</strong> {commissionAgreement.qualifying_conditions}</p>
+          <p><strong>Who pays and when:</strong> {commissionAgreement.payment_terms}</p>
+          {commissionAgreement.status === "proposed" && <>
+            <p>Review these terms carefully. The rate is not binding until you accept it. Contact the team before accepting if anything differs from your discussions.</p>
+            <ActionForm action="accept-commission" extra={{ id: commissionAgreement.id }} label="Accept agreed sales commission">
+              <label className="checkbox-label"><input type="checkbox" name="accepted" required /> I agree to this exact rate, services, qualifying sale and payment terms.</label>
+            </ActionForm>
+          </>}
+          {commissionAgreement.status === "accepted" && <p className="notice success">Accepted {commissionAgreement.accepted_at ? new Date(commissionAgreement.accepted_at).toLocaleDateString("en-GB") : ""}. The agreed terms are recorded and cannot be changed unilaterally.</p>}
+        </>}
+      </section>}
       {reviews.data?.map((r) => (
         <div key={r.created_at} className="notice">
           <strong>{r.decision.replaceAll("_", " ")}</strong>

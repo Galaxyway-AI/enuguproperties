@@ -1342,6 +1342,8 @@ Never embed live secret keys.
 
 # 31. SUCCESS COMMISSION
 
+**Superseded commission policy (13 October 2026):** The seed 2% default below is retained only as historical design context. New listing submissions create no commission mandate. A new sales commission is negotiated at an exact rate from 2%–10%, separately accepted in writing before the relevant services begin, and recorded only when a qualifying completed sale is confirmed. Existing signed arrangements keep their original terms.
+
 The business intends to earn a commission when a property sale introduced/managed through Enugu Properties successfully completes.
 
 Seed default:

@@ -13,7 +13,8 @@ test("approved legal source files match their published immutable snapshots", as
       createHash("sha256").update(source).digest("hex"),
       document.sha256,
     );
-    assert.equal(document.version, "2026-09-14");
-    assert.match(source, /14 September 2026/);
+    const commissionVersion = document.kind === "seller" || document.kind === "terms";
+    assert.equal(document.version, commissionVersion ? "2026-10-13" : "2026-09-14");
+    assert.match(source, commissionVersion ? /13 October 2026/ : /14 September 2026/);
   }
 });

@@ -276,26 +276,6 @@ export default async function Admin({
             </section>
           ))}
           <section className="panel">
-            <h2 style={{ fontSize: 24 }}>
-              Default commission for new mandates
-            </h2>
-            <ActionForm action="config" extra={{ kind: "commission" }}>
-              <label>
-                Basis points (200 = 2%)
-                <input
-                  name="basis_points"
-                  type="number"
-                  min="0"
-                  max="10000"
-                  required
-                />
-              </label>
-              <p className="form-caption">
-                Existing accepted mandates retain their agreed rate.
-              </p>
-            </ActionForm>
-          </section>
-          <section className="panel">
             <h2 style={{ fontSize: 24 }}>Add a location</h2>
             <ActionForm action="config" extra={{ kind: "location" }}>
               <div className="form-grid">
@@ -590,6 +570,7 @@ export default async function Admin({
                     Sale price on completion (₦)
                     <input name="sale_price" inputMode="decimal" />
                   </label>
+                  <p className="form-caption">If a separately agreed commission applies, <Link href="/admin/commissions">confirm the qualifying sale</Link> before recording completion. An advert alone never creates a commission fee.</p>
                 </ActionForm>
               )}
               {["enquiries", "reports"].includes(tab) && (

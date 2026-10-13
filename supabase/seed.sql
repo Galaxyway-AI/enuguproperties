@@ -8,7 +8,7 @@ insert into public.listing_plans(id,name,price_minor,duration_days,photo_limit,v
 insert into public.discount_promotions(code,name,discount_kind,discount_value,plan_id,first_listing_only,automatic,per_user_limit,active)
 values('FIRSTPLUS','First Plus advert free','free',0,'plus',true,true,1,true)
 on conflict(code) do nothing;
-insert into public.system_settings(key,value) values('commission','{"basis_points":200}'),('company','{"name":"MAGENCY ONLINE SOLUTIONS LTD","registration_number":null,"registered_address":null,"support_email":null,"phone":null,"whatsapp":null}'),('retention','{"status":"requires_legal_review","property_documents_days":null,"kyc_days":null}'),('verification_expiry','{"default_days":null}') on conflict do nothing;
+insert into public.system_settings(key,value) values('company','{"name":"MAGENCY ONLINE SOLUTIONS LTD","registration_number":null,"registered_address":null,"support_email":null,"phone":null,"whatsapp":null}'),('retention','{"status":"requires_legal_review","property_documents_days":null,"kyc_days":null}'),('verification_expiry','{"default_days":null}') on conflict do nothing;
 insert into public.locations(name,slug,kind) values('Enugu State','enugu-state','state') on conflict do nothing;
 insert into public.locations(name,slug,kind,parent_id) select 'Enugu metropolis','enugu-metropolis','city',id from public.locations where slug='enugu-state' on conflict do nothing;
 insert into public.locations(name,slug,kind,parent_id)

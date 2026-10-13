@@ -28,6 +28,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0019_featured_advertising.sql",
     "0021_simpler_listing.sql",
     "0022_simple_moderation.sql",
+    "0023_flexible_commission.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -448,6 +449,11 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     property,
     agreement,
   ]);
+  assert.equal(
+    (await sql.query<{ total: number }>("select count(*)::int as total from public.marketing_mandates where property_id=$1", [property])).rows[0].total,
+    0,
+    "submitting an advert must not create a commission mandate",
+  );
   await t.test(
     "assigned staff can approve a listing through review",
     async () => {
@@ -1066,15 +1072,59 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     },
   );
   await t.test(
-    "transaction stages cannot be skipped and completion calculates agreed commission",
+    "commission needs a seller-accepted rate and a confirmed qualifying sale",
     async () => {
+      await as(seller);
+      const saleProperty = (await sql.query<{ id: string }>(
+        "select public.save_property(null,$1::jsonb) id",
+        [JSON.stringify({ ...payload, title: "Negotiated sales advert", listing_purpose: "sale" })],
+      )).rows[0].id;
+      await sql.query("select public.select_plan($1,'free')", [saleProperty]);
+      await as("", "aal1", "service_role");
+      await sql.query(
+        "select public.attach_upload($1,$2,$3,'image',null,'Sale photo','image/webp',100,'sale-photo-hash')",
+        [saleProperty, seller, `${seller}/${saleProperty}/sale.webp`],
+      );
+      await as(seller);
+      await sql.query("select public.submit_property($1,$2)", [saleProperty, agreement]);
+      await sql.query("select public.moderate_property($1,'live','')", [saleProperty]);
+      await as(other);
+      await assert.rejects(sql.query(
+        "select public.propose_commission_agreement($1,350,$2,$3,$4)",
+        [saleProperty, "Buyer introduction and sale coordination", "Only a completed introduced buyer sale qualifies", "Seller pays at completion"],
+      ));
+      await as(staff, "aal2");
+      for (const invalidRate of [150, 1100])
+        await assert.rejects(sql.query(
+          "select public.propose_commission_agreement($1,$2,$3,$4,$5)",
+          [saleProperty, invalidRate, "Buyer introduction and sale coordination", "Only a completed introduced buyer sale qualifies", "Seller pays at completion"],
+        ));
+      const proposed = (await sql.query<{ id: string }>(
+        "select public.propose_commission_agreement($1,350,$2,$3,$4) id",
+        [saleProperty, "Buyer introduction and sale coordination", "Commission only when the introduced buyer completes this sale", "Seller pays within three business days of completion"],
+      )).rows[0].id;
+      await as(other);
+      await assert.rejects(sql.query("select public.accept_commission_agreement($1)", [proposed]));
+      await as(seller);
+      await sql.query("select public.accept_commission_agreement($1)", [proposed]);
+      await assert.rejects(sql.query("select public.accept_commission_agreement($1)", [proposed]));
+      await as(staff, "aal2");
+      await assert.rejects(sql.query("update public.commission_agreements set basis_points=1000 where id=$1", [proposed]));
+      await as(buyer);
+      await sql.query("select public.buyer_action($1,'enquire',$2::jsonb)", [
+        saleProperty, JSON.stringify({ message: "I am interested in buying this property." }),
+      ]);
       await as(staff, "aal2");
       const transaction = (
         await sql.query<{ id: string }>(
           "select public.manage_transaction(null,$1,$2,'buyer_qualified','Recorded introduction reviewed by staff',null) id",
-          [property, buyer],
+          [saleProperty, buyer],
         )
       ).rows[0].id;
+      await assert.rejects(sql.query(
+        "select public.confirm_qualifying_sale($1,$2)",
+        [transaction, "Buyer introduction documented"],
+      ));
       await assert.rejects(
         sql.query(
           "select public.manage_transaction($1,null,null,'completed','Attempt to skip professional review',2000000000)",
@@ -1089,7 +1139,6 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
         "professional_review",
         "contract_stage",
         "awaiting_completion",
-        "completed",
       ])
         await sql.query(
           "select public.manage_transaction($1,null,null,$2,$3,$4)",
@@ -1097,22 +1146,90 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
             transaction,
             stage,
             "Recorded milestone: " + stage,
-            stage === "completed" ? 2000000000 : null,
+            null,
           ],
         );
+      await as(other);
+      await assert.rejects(sql.query(
+        "select public.confirm_qualifying_sale($1,$2)",
+        [transaction, "Buyer introduction documented"],
+      ));
+      await as(staff, "aal2");
+      await sql.query("select public.confirm_qualifying_sale($1,$2)", [
+        transaction,
+        "Recorded introduction and completed sale satisfy the signed service terms",
+      ]);
+      await sql.query(
+        "select public.manage_transaction($1,null,null,'completed','Recorded milestone: completed',2000000000)",
+        [transaction],
+      );
       const fee = (
         await sql.query<{ amount_minor: number }>(
           "select amount_minor from public.commissions where transaction_id=$1",
           [transaction],
         )
       ).rows[0];
-      assert.equal(fee.amount_minor, 40000000);
+      assert.equal(fee.amount_minor, 70000000);
+      await as(seller);
+      const unmandated = (await sql.query<{ id: string }>(
+        "select public.save_property(null,$1::jsonb) id",
+        [JSON.stringify({ ...payload, title: "Sale without commission mandate", listing_purpose: "sale" })],
+      )).rows[0].id;
+      await sql.query("select public.select_plan($1,'free')", [unmandated]);
+      await as("", "aal1", "service_role");
+      await sql.query(
+        "select public.attach_upload($1,$2,$3,'image',null,'Sale photo','image/webp',100,'unmandated-photo-hash')",
+        [unmandated, seller, `${seller}/${unmandated}/sale.webp`],
+      );
+      await as(seller);
+      await sql.query("select public.submit_property($1,$2)", [unmandated, agreement]);
+      await sql.query("select public.moderate_property($1,'live','')", [unmandated]);
+      await as(buyer);
+      await sql.query("select public.buyer_action($1,'enquire',$2::jsonb)", [
+        unmandated, JSON.stringify({ message: "I am interested in buying the second property." }),
+      ]);
+      await as(staff, "aal2");
+      const noAgreementTransaction = (await sql.query<{ id: string }>(
+        "select public.manage_transaction(null,$1,$2,'buyer_qualified','Buyer introduction recorded',null) id",
+        [unmandated, buyer],
+      )).rows[0].id;
+      for (const stage of ["offer_submitted","offer_accepted","verification_pending","due_diligence","professional_review","contract_stage","awaiting_completion","completed"])
+        await sql.query("select public.manage_transaction($1,null,null,$2,$3,$4)", [
+          noAgreementTransaction, stage, `Recorded milestone: ${stage}`, stage === "completed" ? 1000000000 : null,
+        ]);
+      assert.equal((await sql.query<{ total: number }>(
+        "select count(*)::int as total from public.commissions where transaction_id=$1", [noAgreementTransaction],
+      )).rows[0].total, 0, "an advert and completed sale alone must not create commission");
       await assert.rejects(
         sql.query(
           "select public.manage_transaction($1,null,null,'completed','Attempted duplicate completion',2000000000)",
           [transaction],
         ),
       );
+    },
+  );
+  await t.test(
+    "historical signed rates stay unchanged and require staff evidence",
+    async () => {
+      await as("", "aal1", "service_role");
+      const mandate = (await sql.query<{ id: string }>(
+        `insert into public.marketing_mandates(seller_id,property_id,kind,basis_points,acceptance_id)
+         select $1,$2,'percentage',175,id from public.agreement_acceptances
+         where user_id=$1 and property_id=$2 limit 1 returning id`,
+        [seller, property],
+      )).rows[0].id;
+      await as(other);
+      await assert.rejects(sql.query("select public.confirm_legacy_commission($1,$2)", [mandate, "signed-reference-123"]));
+      await as(staff, "aal2");
+      await assert.rejects(sql.query("select public.confirm_legacy_commission($1,$2)", [mandate, ""]));
+      await sql.query("select public.confirm_legacy_commission($1,$2)", [mandate, "signed-reference-123"]);
+      const row = (await sql.query<{ basis_points: number; signed_agreement_reference: string }>(
+        `select m.basis_points,c.signed_agreement_reference from public.marketing_mandates m
+         join public.legacy_commission_confirmations c on c.mandate_id=m.id where m.id=$1`,
+        [mandate],
+      )).rows[0];
+      assert.equal(row.basis_points, 175);
+      assert.equal(row.signed_agreement_reference, "signed-reference-123");
     },
   );
   await t.test(

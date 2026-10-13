@@ -145,11 +145,14 @@ export default async function Pricing() {
             opportunities. They do not purchase approval, identity checks, title
             verification or a favourable official-search result.
           </p>
-          <h2>What about a success commission?</h2>
+          <h2>Flexible &amp; Transparent Sales Commission</h2>
           <p>
-            A separate success fee may apply when a sale introduced or managed
-            through the platform completes. Your marketing mandate records the
-            agreed basis and terms before submission. Listing checkout never
+            Sales commission is negotiated between 2%–10% of the final agreed
+            sale price when you separately engage us for buyer introduction or
+            sales support. The exact rate depends on the property, services and
+            our involvement, and you agree it in writing before those services
+            begin. Posting an advert does not itself create a commission fee.
+            Advertising charges remain separate, and listing checkout never
             collects the property purchase price.
           </p>
         </div>

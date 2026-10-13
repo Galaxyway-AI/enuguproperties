@@ -1,6 +1,6 @@
 # TERMS OF USE
 
-**Effective date: 14 September 2026**
+**Effective date: 13 October 2026**
 
 These Terms of Use (“**Terms**”) govern access to and use of **Enugu Properties**, including the website at **https://enuguproperties.com**, user accounts, property listings, enquiries, inspections, verification features, advertising services, transaction-support features and other services made available under the Enugu Properties brand (collectively, the “**Platform**” or “**Services**”).
 
@@ -532,6 +532,8 @@ Nothing in these Terms removes mandatory consumer rights.
 
 Where a Seller enters a separate Property Marketing Mandate, Enugu Properties may become entitled to the specifically agreed Success Fee when the conditions of that Mandate are met.
 
+Our standard sales commission range for a separately agreed service is **2%–10% of the final agreed Property sale price**. The exact rate depends on the Property's value, the services required and our involvement. It must be negotiated and agreed in writing before the applicable commission-bearing services begin. Listing a Property does not, by itself, accept a commission rate or make every later sale commissionable.
+
 The applicable:
 
 * commission percentage;
@@ -543,7 +545,7 @@ The applicable:
 
 must appear in the Seller's accepted mandate.
 
-There is no undisclosed Success Fee merely because these general Terms exist.
+There is no undisclosed Success Fee merely because these general Terms exist, a Seller registers, or a Listing is published. A higher rate cannot be imposed unilaterally after agreement.
 
 ---
 

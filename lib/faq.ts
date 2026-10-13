@@ -63,6 +63,25 @@ export const faqItems: FaqItem[] = [
     link: { href: "/pricing", label: "Review advertising options" },
   },
   {
+    id: "sales-commission",
+    question: "How much sales commission does Enugu Properties charge?",
+    answer:
+      "For a separately agreed sales service, our negotiated commission is 2%–10% of the final agreed property sale price. The exact rate depends on the property's value, the marketing and support required, and our involvement. We set out the rate, services, qualifying sale and payment terms for you to accept before those services begin.",
+    link: { href: "/pricing", label: "Understand advertising and commission" },
+  },
+  {
+    id: "commission-automatic",
+    question: "Does posting an advert automatically create a commission fee?",
+    answer:
+      "No. Advertising is separate from a sales commission. Publishing an advert does not automatically make every later sale commissionable. A commission applies only when you separately accept an exact negotiated rate and the qualifying conditions in that agreement are met. The 10% figure is the upper end of the range, not a default charge.",
+  },
+  {
+    id: "commission-payment",
+    question: "When is a negotiated commission payable?",
+    answer:
+      "Payment depends on the qualifying sale and payment terms in your separate written agreement. Advertising plan charges or other agreed service fees are disclosed separately from sales commission.",
+  },
+  {
     id: "enquiries",
     question: "How do I ask about a property or arrange an inspection?",
     answer:

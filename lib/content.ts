@@ -188,7 +188,7 @@ export const content: Record<
       },
       {
         title: "Know your agreement",
-        body: "Review the seller declaration and marketing agreement before submission. Advertising fees and any agreed success commission are separate. The accepted version and commission basis are retained with the listing.",
+        body: "Review the seller declaration before submission. Advertising fees are separate from a sales commission. A 2%–10% commission applies only if you separately agree an exact rate and service terms in writing; submitting an advert does not agree a rate.",
       },
     ],
     cta: {
