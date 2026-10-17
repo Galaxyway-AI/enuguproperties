@@ -7,12 +7,13 @@ import { money } from "@/lib/domain";
 import { UploadForm } from "@/components/upload-form";
 import { ModerationActions } from "@/components/moderation-actions";
 import { DEFAULT_HOMEPAGE_SLIDE_COUNT, MAX_HOMEPAGE_SLIDE_COUNT, homepageSlideCount } from "@/lib/hero-slides";
+import { registrationSourceLabel, registrationSources } from "@/lib/registration-sources";
 export default async function Admin({
   params,
   searchParams,
 }: {
   params: Promise<{ section?: string[] }>;
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; source?: string }>;
 }) {
   if (!configured()) return null;
   const { section = [] } = await params;
@@ -50,6 +51,14 @@ export default async function Admin({
               query: c
                 .from("profiles")
                 .select("id", { count: "exact", head: true }),
+            },
+            can("compliance") && {
+              title: "Named referrals",
+              path: "accounts?source=referral",
+              query: c
+                .from("profiles")
+                .select("id", { count: "exact", head: true })
+                .eq("registration_source", "referral"),
             },
             can("support") && {
               title: "New enquiries",
@@ -337,6 +346,9 @@ export default async function Admin({
   const filters = await searchParams;
   const page = Math.max(1, Math.min(10000, Number(filters.page) || 1));
   const term = (filters.q || "").replace(/[^a-zA-Z0-9 @+-]/g, "").slice(0, 100);
+  const sourceFilter = tab === "accounts" && registrationSources.some((option) => option.value === filters.source)
+    ? filters.source || ""
+    : "";
   let query = c
     .from(cfg.table)
     .select("*", { count: "exact" })
@@ -345,7 +357,7 @@ export default async function Admin({
   if (term) {
     const columns: Record<string, string[]> = {
       properties: ["title", "reference"],
-      profiles: ["full_name", "phone"],
+      profiles: ["full_name", "phone", "registration_source_detail", "referrer_name", "referrer_contact"],
       enquiries: ["reference", "message"],
       transaction_cases: ["reference"],
       orders: ["reference"],
@@ -361,6 +373,7 @@ export default async function Admin({
   }
   if (tab === "moderation")
     query = query.in("status", ["submitted", "under_review", "needs_changes"]);
+  if (sourceFilter) query = query.eq("registration_source", sourceFilter);
   const { data: rows, error, count } = await query;
   if (error) throw error;
   const sellerNames = new Map<string, string>();
@@ -377,6 +390,11 @@ export default async function Admin({
       ),
     );
   }
+  const pageHref = (nextPage: number) => `?${new URLSearchParams({
+    q: term,
+    page: String(nextPage),
+    ...(sourceFilter ? { source: sourceFilter } : {}),
+  })}`;
   return (
     <>
       <h1>{tab[0].toUpperCase() + tab.slice(1)}</h1>
@@ -390,6 +408,17 @@ export default async function Admin({
             placeholder="Reference, name or relevant text"
           />
         </label>
+        {tab === "accounts" && (
+          <label>
+            How they found us
+            <select name="source" defaultValue={sourceFilter}>
+              <option value="">All sources</option>
+              {registrationSources.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <button className="button">Search</button>
       </form>
       {tab === "transactions" && (
@@ -457,10 +486,24 @@ export default async function Admin({
                 </div>
               )}
               {tab === "accounts" && (
-                <p>
-                  {row.seller_type?.replaceAll("_", " ")} ·{" "}
-                  {row.phone || "No phone number"}
-                </p>
+                <>
+                  <p>
+                    {row.seller_type?.replaceAll("_", " ")} ·{" "}
+                    {row.phone || "No phone number"}
+                  </p>
+                  <p>
+                    <strong>Found us through:</strong> {registrationSourceLabel(row.registration_source || "")}
+                    {row.registration_source_detail && ` · ${row.registration_source_detail}`}
+                  </p>
+                  {row.registration_source === "referral" && (
+                    <p>
+                      <strong>Named referrer:</strong> {row.referrer_name} · {row.referrer_contact}
+                      <br />
+                      <span className="form-caption">Self-reported. Confirm the referral and any commission terms separately.</span>
+                    </p>
+                  )}
+                  <p className="form-caption">Account ID: {row.id}</p>
+                </>
               )}
               {row.amount_minor && <p>{money(row.amount_minor)}</p>}
               {row.property_id && (
@@ -711,7 +754,7 @@ export default async function Admin({
         {page > 1 && (
           <Link
             className="button secondary"
-            href={`?q=${encodeURIComponent(term)}&page=${page - 1}`}
+            href={pageHref(page - 1)}
           >
             Previous
           </Link>
@@ -720,7 +763,7 @@ export default async function Admin({
         {page * 50 < (count || 0) && (
           <Link
             className="button secondary"
-            href={`?q=${encodeURIComponent(term)}&page=${page + 1}`}
+            href={pageHref(page + 1)}
           >
             Next
           </Link>

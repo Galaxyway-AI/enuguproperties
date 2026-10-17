@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Turnstile } from "./turnstile";
 import { safeNext } from "@/lib/domain";
 import { authHref } from "@/lib/auth-navigation";
+import { registrationSources, socialPlatforms } from "@/lib/registration-sources";
 export function AuthForm({
   mode,
   next,
@@ -18,6 +19,7 @@ export function AuthForm({
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [registrationSource, setRegistrationSource] = useState("");
   if (message && mode === "register")
     return (
       <div className="notice success submission-success" role="status">
@@ -70,6 +72,67 @@ export function AuthForm({
     >
       {mode === "register" && (
         <>
+          <fieldset className="panel registration-source">
+            <legend>How did you hear about Enugu Properties?</legend>
+            <label>
+              Choose the best match
+              <select
+                name="registrationSource"
+                value={registrationSource}
+                onChange={(event) => setRegistrationSource(event.target.value)}
+                required
+              >
+                <option value="">Select an option</option>
+                {registrationSources.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {registrationSource === "referral" && (
+              <>
+                <label>
+                  Who referred you? Name or business
+                  <input name="referrerName" minLength={2} maxLength={120} required />
+                </label>
+                <label>
+                  Their email or phone number
+                  <input name="referrerContact" maxLength={254} required />
+                </label>
+                <p className="form-caption">
+                  This helps us identify the referrer. We verify referrals before
+                  agreeing any commission.
+                </p>
+              </>
+            )}
+            {registrationSource === "social" && (
+              <label>
+                Which social media platform?
+                <select name="registrationSourceDetail" defaultValue="" required>
+                  <option value="">Select a platform</option>
+                  {socialPlatforms.map((platform) => (
+                    <option key={platform} value={platform}>{platform}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {["search", "whatsapp", "online_ad", "property_listing", "offline", "other"].includes(registrationSource) && (
+              <label key={registrationSource}>
+                {registrationSource === "search"
+                  ? "Which search engine?"
+                  : registrationSource === "other"
+                    ? "Please tell us where"
+                    : "Where did you see or hear about us?"}
+                <input
+                  name="registrationSourceDetail"
+                  maxLength={120}
+                  required={registrationSource === "other"}
+                  placeholder={registrationSource === "search" ? "For example, Google" : undefined}
+                />
+              </label>
+            )}
+          </fieldset>
           <div className="form-grid two">
             <label>
               First name

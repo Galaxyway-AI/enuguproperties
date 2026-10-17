@@ -17,6 +17,11 @@ import {
   registrationErrorDetails,
   registrationErrorMessage,
 } from "@/lib/registration-errors";
+import {
+  registrationSources,
+  registrationSourceLabel,
+  socialPlatforms,
+} from "@/lib/registration-sources";
 export async function POST(request: NextRequest) {
   try {
     sameOrigin(request);
@@ -71,6 +76,33 @@ export async function POST(request: NextRequest) {
       const sellerType = z
         .enum(["owner", "agent", "developer", "buyer"])
         .parse(body.sellerType);
+      const registrationSource = z
+        .enum(registrationSources.map((option) => option.value))
+        .safeParse(body.registrationSource);
+      if (!registrationSource.success)
+        throw new HttpError(400, "Choose how you heard about Enugu Properties.");
+      const source = registrationSource.data;
+      const sourceDetail = z.string().trim().max(120).parse(
+        body.registrationSourceDetail || "",
+      );
+      if (source === "social" && !socialPlatforms.some((platform) => platform === sourceDetail))
+        throw new HttpError(400, "Choose the social media platform where you found us.");
+      if (source === "other" && sourceDetail.length < 2)
+        throw new HttpError(400, "Tell us where you heard about Enugu Properties.");
+      const referrerName = source === "referral" && typeof body.referrerName === "string"
+        ? body.referrerName.trim()
+        : "";
+      const referrerContact = source === "referral" && typeof body.referrerContact === "string"
+        ? body.referrerContact.trim()
+        : "";
+      if (source === "referral" && (referrerName.length < 2 || referrerName.length > 120))
+        throw new HttpError(400, "Enter your referrer's name or business name (2 to 120 characters).");
+      if (source === "referral" && (referrerContact.length < 5 || referrerContact.length > 254))
+        throw new HttpError(400, "Enter your referrer's email address or phone number.");
+      if (source === "referral" &&
+          !z.email().safeParse(referrerContact).success &&
+          referrerContact.replace(/\D/g, "").length < 7)
+        throw new HttpError(400, "Enter your referrer's email address or a phone number with at least 7 digits.");
       const { data, error } = await signUpWithEmail({
         email,
         password,
@@ -98,14 +130,14 @@ export async function POST(request: NextRequest) {
           "Your account could not be prepared. Please contact support before trying again.",
         );
       await serverQuery(
-        "select app_private.complete_registration($1,$2,$3,$4)",
-        [userId, name, phone, sellerType],
+        "select app_private.complete_registration($1,$2,$3,$4,$5,$6,$7,$8)",
+        [userId, name, phone, sellerType, source, source === "referral" ? "" : sourceDetail, referrerName, referrerContact],
       );
       after(() =>
         safelySendOperationsAlert({
           id: `registration-${userId}`,
           subject: "New Enugu Properties registration",
-          text: `A new user has registered.\n\nName: ${name}\nEmail: ${email}\nAccount type: ${sellerType.replaceAll("-", " ")}`,
+          text: `A new user has registered.\n\nName: ${name}\nEmail: ${email}\nAccount type: ${sellerType.replaceAll("-", " ")}\nFound us through: ${registrationSourceLabel(source)}${sourceDetail && source !== "referral" ? ` (${sourceDetail})` : ""}${source === "referral" ? `\nNamed referrer: ${referrerName}\nReferrer contact: ${referrerContact}` : ""}`,
           adminPath: "/admin/accounts",
         }),
       );

@@ -29,6 +29,7 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
     "0021_simpler_listing.sql",
     "0022_simple_moderation.sql",
     "0023_flexible_commission.sql",
+    "0026_registration_attribution.sql",
   ]) {
     const migration = (
       await readFile(`supabase/migrations/${f}`, "utf8")
@@ -117,6 +118,47 @@ test("PostgreSQL trust boundaries and lifecycle", async (t) => {
       );
     },
   );
+  await t.test("registration attribution records a referrer once and rejects missing details", async () => {
+    const referred = "10000000-0000-4000-8000-000000000007";
+    const social = "10000000-0000-4000-8000-000000000008";
+    await sql.exec(`insert into auth.users(id) values('${referred}'),('${social}');`);
+    await assert.rejects(
+      sql.query(
+        "select app_private.complete_registration($1,$2,$3,$4,$5,$6,$7,$8)",
+        [referred, "Nneka Okafor", "+2348012345678", "agent", "referral", "", "", ""],
+      ),
+      /Provide the referrer name and email or phone/,
+    );
+    await sql.query(
+      "select app_private.complete_registration($1,$2,$3,$4,$5,$6,$7,$8)",
+      [referred, "Nneka Okafor", "+2348012345678", "agent", "referral", "", "Chidi Obi", "chidi@example.com"],
+    );
+    await sql.query(
+      "select app_private.complete_registration($1,$2,$3,$4,$5,$6,$7,$8)",
+      [social, "Amaka Eze", "+2348012345679", "buyer", "social", "Instagram", "", ""],
+    );
+    const rows = (await sql.query<{
+      id: string;
+      registration_source: string;
+      registration_source_detail: string;
+      referrer_name: string;
+      referrer_contact: string;
+    }>(
+      "select id,registration_source,registration_source_detail,referrer_name,referrer_contact from public.profiles where id = any($1::uuid[]) order by id",
+      [[referred, social]],
+    )).rows;
+    assert.deepEqual(rows, [
+      { id: referred, registration_source: "referral", registration_source_detail: "", referrer_name: "Chidi Obi", referrer_contact: "chidi@example.com" },
+      { id: social, registration_source: "social", registration_source_detail: "Instagram", referrer_name: "", referrer_contact: "" },
+    ]);
+    await assert.rejects(
+      sql.query(
+        "select app_private.complete_registration($1,$2,$3,$4,$5,$6,$7,$8)",
+        [referred, "Nneka Okafor", "+2348012345678", "agent", "referral", "", "Another person", "other@example.com"],
+      ),
+      /Registration was already recorded/,
+    );
+  });
   async function as(id: string, aal = "aal1", role = "authenticated") {
     await sql.exec(
       `reset role; set request.jwt.claim.sub='${id}';set request.jwt.claim.aal='${aal}';set role ${role};`,
