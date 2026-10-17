@@ -1,6 +1,6 @@
 # SELLER TERMS & PROPERTY MARKETING MANDATE
 
-**Effective date: 13 October 2026**
+**Effective date: 17 October 2026**
 
 These Seller Terms & Property Marketing Mandate (“**Seller Agreement**”) govern Properties submitted, advertised or marketed through Enugu Properties.
 
@@ -10,7 +10,6 @@ These Seller Terms & Property Marketing Mandate (“**Seller Agreement**”) gov
 RC Number: **8229228**
 Private Company Limited by Shares
 
-House 10
 34V Terraces Estate
 Road No. 2
 Off Orchid Road

@@ -60,7 +60,7 @@ export default function RootLayout({
                 telephone: business.whatsappE164,
                 address: {
                   "@type": "PostalAddress",
-                  streetAddress: "House 10, 34V Terraces Estate, Road No. 2, Off Orchid Road",
+                  streetAddress: "34V Terraces Estate, Road No. 2, Off Orchid Road",
                   addressLocality: "Lekki",
                   addressRegion: "Lagos",
                   postalCode: "106104",

@@ -1,6 +1,6 @@
 # PRIVACY POLICY
 
-**Effective date: 14 September 2026**
+**Effective date: 17 October 2026**
 
 Enugu Properties respects your privacy and is committed to protecting personal information entrusted to us.
 
@@ -14,7 +14,6 @@ This Privacy Policy explains how **MAGENCY ONLINE SOLUTIONS LTD.**, operating as
 
 **Registered Address**
 
-House 10
 34V Terraces Estate
 Road No. 2
 Off Orchid Road
@@ -793,7 +792,6 @@ Operated by **MAGENCY ONLINE SOLUTIONS LTD.**
 
 RC Number: **8229228**
 
-House 10
 34V Terraces Estate
 Road No. 2
 Off Orchid Road

@@ -4,7 +4,6 @@ export const business = {
   rcNumber: "8229228",
   companyType: "PRIVATE COMPANY LIMITED BY SHARES",
   registeredAddress: [
-    "House 10",
     "34V Terraces Estate",
     "Road No. 2",
     "Off Orchid Road",

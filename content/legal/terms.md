@@ -1,6 +1,6 @@
 # TERMS OF USE
 
-**Effective date: 13 October 2026**
+**Effective date: 17 October 2026**
 
 These Terms of Use (“**Terms**”) govern access to and use of **Enugu Properties**, including the website at **https://enuguproperties.com**, user accounts, property listings, enquiries, inspections, verification features, advertising services, transaction-support features and other services made available under the Enugu Properties brand (collectively, the “**Platform**” or “**Services**”).
 
@@ -12,7 +12,6 @@ Company Type: **Private Company Limited by Shares**
 
 **Registered Address**
 
-House 10
 34V Terraces Estate
 Road No. 2
 Off Orchid Road
@@ -837,7 +836,6 @@ Operated by **MAGENCY ONLINE SOLUTIONS LTD.**
 
 RC Number: **8229228**
 
-House 10
 34V Terraces Estate
 Road No. 2
 Off Orchid Road
